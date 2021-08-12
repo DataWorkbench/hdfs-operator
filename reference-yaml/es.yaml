@@ -1,0 +1,834 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: es-cluster
+spec:
+  version: 7.6.2
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  nodeSets:
+  - name: master
+    count: 1
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: csi-ssd-enterprise
+    podTemplate:
+      spec:
+        volumes:
+        - name: elasticsearch-data
+          emptyDir: {}
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+        containers:
+        - name: elasticsearch
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh  # 没有提供这个检测脚本，后续删掉
+            failureThreshold: 3
+            initialDelaySeconds: 100
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 20
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+    config:
+      node.master: true
+      node.data: false
+      node.store.allow_mmap: true
+      indices.breaker.total.use_real_memory: false
+      indices.fielddata.cache.size: 40%
+      indices.query.bool.max_clause_count: 4096
+      indices.memory.index_buffer_size: "25%"
+  - name: data
+    count: 2
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: csi-ssd-enterprise
+    podTemplate:
+      spec:
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']
+        - name: increase-fd-ulimit
+          securityContext:
+            privileged: true
+          command: ["sh", "-c", "ulimit -n 65536"]
+        containers:
+        - name: elasticsearch
+          readinessProbe:
+            exec:
+              command:
+              - bash
+              - -c
+              - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 100
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 20
+          env:
+          - name: ES_JAVA_OPTS
+            value: -Xms1g -Xmx1g
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+    config:
+      node.master: false
+      node.data: true
+      node.store.allow_mmap: true
+      indices.breaker.total.use_real_memory: false
+      indices.fielddata.cache.size: 40%
+      indices.query.bool.max_clause_count: 4096
+      indices.memory.index_buffer_size: "25%"
+  http:
+    service:
+      spec:
+        type: NodePort
+
+---
+# kubectl get statefulSet es-cluster-es-data -n elastic-system -o yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  creationTimestamp: "2021-07-29T03:26:08Z"
+  generation: 1
+  labels:
+    common.k8s.elastic.co/template-hash: "942285577"
+    common.k8s.elastic.co/type: elasticsearch
+    elasticsearch.k8s.elastic.co/cluster-name: es-cluster
+    elasticsearch.k8s.elastic.co/statefulset-name: es-cluster-es-data
+  name: es-cluster-es-data
+  namespace: elastic-system
+  ownerReferences:
+    - apiVersion: elasticsearch.k8s.elastic.co/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Elasticsearch
+      name: es-cluster
+      uid: bdc67153-e4a3-4084-8a51-973440f93ec9
+  resourceVersion: "13954782"
+  selfLink: /apis/apps/v1/namespaces/elastic-system/statefulsets/es-cluster-es-data
+  uid: b2c5c724-cfed-475d-8187-bd53ad2b8613
+spec:
+  podManagementPolicy: Parallel
+  replicas: 2
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      common.k8s.elastic.co/type: elasticsearch
+      elasticsearch.k8s.elastic.co/cluster-name: es-cluster
+      elasticsearch.k8s.elastic.co/statefulset-name: es-cluster-es-data
+  serviceName: es-cluster-es-data
+  template:
+    metadata:
+      annotations:
+        co.elastic.logs/module: elasticsearch
+      creationTimestamp: null
+      labels:
+        common.k8s.elastic.co/type: elasticsearch
+        elasticsearch.k8s.elastic.co/cluster-name: es-cluster
+        elasticsearch.k8s.elastic.co/config-hash: "3231440241"
+        elasticsearch.k8s.elastic.co/http-scheme: https
+        elasticsearch.k8s.elastic.co/node-data: "true"
+        elasticsearch.k8s.elastic.co/node-ingest: "true"
+        elasticsearch.k8s.elastic.co/node-master: "false"
+        elasticsearch.k8s.elastic.co/node-ml: "true"
+        elasticsearch.k8s.elastic.co/statefulset-name: es-cluster-es-data
+        elasticsearch.k8s.elastic.co/version: 7.6.2
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    elasticsearch.k8s.elastic.co/cluster-name: es-cluster
+                topologyKey: kubernetes.io/hostname
+              weight: 100
+      automountServiceAccountToken: false
+      containers:
+        - env:
+            - name: ES_JAVA_OPTS
+              value: -Xms1g -Xmx1g
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: PROBE_PASSWORD_PATH
+              value: /mnt/elastic-internal/probe-user/elastic-internal-probe
+            - name: PROBE_USERNAME
+              value: elastic-internal-probe
+            - name: READINESS_PROBE_PROTOCOL
+              value: https
+            - name: HEADLESS_SERVICE_NAME
+              value: es-cluster-es-data
+            - name: NSS_SDB_USE_CACHE
+              value: "no"
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - /mnt/elastic-internal/scripts/pre-stop-hook-script.sh
+          name: elasticsearch
+          ports:
+            - containerPort: 9200
+              name: https
+              protocol: TCP
+            - containerPort: 9300
+              name: transport
+              protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+                - bash
+                - -c
+                - /mnt/elastic-internal/scripts/readiness-probe-script.sh
+            failureThreshold: 3
+            initialDelaySeconds: 100
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 20
+          resources:
+            limits:
+              cpu: "1"
+              memory: 2Gi
+            requests:
+              cpu: "1"
+              memory: 2Gi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /mnt/elastic-internal/downward-api
+              name: downward-api
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/bin
+              name: elastic-internal-elasticsearch-bin-local
+            - mountPath: /mnt/elastic-internal/elasticsearch-config
+              name: elastic-internal-elasticsearch-config
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config
+              name: elastic-internal-elasticsearch-config-local
+            - mountPath: /usr/share/elasticsearch/plugins
+              name: elastic-internal-elasticsearch-plugins-local
+            - mountPath: /usr/share/elasticsearch/config/http-certs
+              name: elastic-internal-http-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/probe-user
+              name: elastic-internal-probe-user
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-remote-certs/
+              name: elastic-internal-remote-certificate-authorities
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/scripts
+              name: elastic-internal-scripts
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-certs
+              name: elastic-internal-transport-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/unicast-hosts
+              name: elastic-internal-unicast-hosts
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/xpack-file-realm
+              name: elastic-internal-xpack-file-realm
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-data
+            - mountPath: /usr/share/elasticsearch/logs
+              name: elasticsearch-logs
+      dnsPolicy: ClusterFirst
+      initContainers:
+        - command:
+            - bash
+            - -c
+            - /mnt/elastic-internal/scripts/prepare-fs.sh
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+          imagePullPolicy: IfNotPresent
+          name: elastic-internal-init-filesystem
+          resources:
+            limits:
+              cpu: 100m
+              memory: 50Mi
+            requests:
+              cpu: 100m
+              memory: 50Mi
+          securityContext:
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /mnt/elastic-internal/elasticsearch-config-local
+              name: elastic-internal-elasticsearch-config-local
+            - mountPath: /mnt/elastic-internal/elasticsearch-plugins-local
+              name: elastic-internal-elasticsearch-plugins-local
+            - mountPath: /mnt/elastic-internal/elasticsearch-bin-local
+              name: elastic-internal-elasticsearch-bin-local
+            - mountPath: /mnt/elastic-internal/transport-certificates
+              name: elastic-internal-transport-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/scripts
+              name: elastic-internal-scripts
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-data
+            - mountPath: /usr/share/elasticsearch/logs
+              name: elasticsearch-logs
+            - mountPath: /mnt/elastic-internal/downward-api
+              name: downward-api
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/elasticsearch-config
+              name: elastic-internal-elasticsearch-config
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/http-certs
+              name: elastic-internal-http-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/probe-user
+              name: elastic-internal-probe-user
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-remote-certs/
+              name: elastic-internal-remote-certificate-authorities
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/unicast-hosts
+              name: elastic-internal-unicast-hosts
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/xpack-file-realm
+              name: elastic-internal-xpack-file-realm
+              readOnly: true
+        - command:
+            - sh
+            - -c
+            - sysctl -w vm.max_map_count=262144
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+          imagePullPolicy: IfNotPresent
+          name: sysctl
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /mnt/elastic-internal/downward-api
+              name: downward-api
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/bin
+              name: elastic-internal-elasticsearch-bin-local
+            - mountPath: /mnt/elastic-internal/elasticsearch-config
+              name: elastic-internal-elasticsearch-config
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config
+              name: elastic-internal-elasticsearch-config-local
+            - mountPath: /usr/share/elasticsearch/plugins
+              name: elastic-internal-elasticsearch-plugins-local
+            - mountPath: /usr/share/elasticsearch/config/http-certs
+              name: elastic-internal-http-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/probe-user
+              name: elastic-internal-probe-user
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-remote-certs/
+              name: elastic-internal-remote-certificate-authorities
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/scripts
+              name: elastic-internal-scripts
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-certs
+              name: elastic-internal-transport-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/unicast-hosts
+              name: elastic-internal-unicast-hosts
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/xpack-file-realm
+              name: elastic-internal-xpack-file-realm
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-data
+            - mountPath: /usr/share/elasticsearch/logs
+              name: elasticsearch-logs
+        - command:
+            - sh
+            - -c
+            - ulimit -n 65536
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+          image: docker.elastic.co/elasticsearch/elasticsearch:7.6.2
+          imagePullPolicy: IfNotPresent
+          name: increase-fd-ulimit
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /mnt/elastic-internal/downward-api
+              name: downward-api
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/bin
+              name: elastic-internal-elasticsearch-bin-local
+            - mountPath: /mnt/elastic-internal/elasticsearch-config
+              name: elastic-internal-elasticsearch-config
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config
+              name: elastic-internal-elasticsearch-config-local
+            - mountPath: /usr/share/elasticsearch/plugins
+              name: elastic-internal-elasticsearch-plugins-local
+            - mountPath: /usr/share/elasticsearch/config/http-certs
+              name: elastic-internal-http-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/probe-user
+              name: elastic-internal-probe-user
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-remote-certs/
+              name: elastic-internal-remote-certificate-authorities
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/scripts
+              name: elastic-internal-scripts
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/config/transport-certs
+              name: elastic-internal-transport-certificates
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/unicast-hosts
+              name: elastic-internal-unicast-hosts
+              readOnly: true
+            - mountPath: /mnt/elastic-internal/xpack-file-realm
+              name: elastic-internal-xpack-file-realm
+              readOnly: true
+            - mountPath: /usr/share/elasticsearch/data
+              name: elasticsearch-data
+            - mountPath: /usr/share/elasticsearch/logs
+              name: elasticsearch-logs
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 180
+      volumes:
+        - downwardAPI:
+            defaultMode: 420
+            items:
+              - fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.labels
+                path: labels
+          name: downward-api
+        - emptyDir: {}
+          name: elastic-internal-elasticsearch-bin-local
+        - name: elastic-internal-elasticsearch-config
+          secret:
+            defaultMode: 420
+            optional: false
+            secretName: es-cluster-es-data-es-config
+        - emptyDir: {}
+          name: elastic-internal-elasticsearch-config-local
+        - emptyDir: {}
+          name: elastic-internal-elasticsearch-plugins-local
+        - name: elastic-internal-http-certificates
+          secret:
+            defaultMode: 420
+            optional: false
+            secretName: es-cluster-es-http-certs-internal
+        - name: elastic-internal-probe-user
+          secret:
+            defaultMode: 420
+            items:
+              - key: elastic-internal-probe
+                path: elastic-internal-probe
+            optional: false
+            secretName: es-cluster-es-internal-users
+        - name: elastic-internal-remote-certificate-authorities
+          secret:
+            defaultMode: 420
+            optional: false
+            secretName: es-cluster-es-remote-ca
+        - configMap:
+            defaultMode: 493
+            name: es-cluster-es-scripts
+            optional: false
+          name: elastic-internal-scripts
+        - name: elastic-internal-transport-certificates
+          secret:
+            defaultMode: 420
+            optional: false
+            secretName: es-cluster-es-transport-certificates
+        - configMap:
+            defaultMode: 420
+            name: es-cluster-es-unicast-hosts
+            optional: false
+          name: elastic-internal-unicast-hosts
+        - name: elastic-internal-xpack-file-realm
+          secret:
+            defaultMode: 420
+            optional: false
+            secretName: es-cluster-es-xpack-file-realm
+        - name: elasticsearch-data
+          persistentVolumeClaim:
+            claimName: claim-name-placeholder
+        - emptyDir: {}
+          name: elasticsearch-logs
+  updateStrategy:
+    type: OnDelete
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: elasticsearch-data
+        ownerReferences:
+          - apiVersion: elasticsearch.k8s.elastic.co/v1
+            blockOwnerDeletion: false
+            controller: true
+            kind: Elasticsearch
+            name: es-cluster
+            uid: bdc67153-e4a3-4084-8a51-973440f93ec9
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: csi-ssd-enterprise
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+status:
+  collisionCount: 0
+  currentReplicas: 2
+  currentRevision: es-cluster-es-data-9c47c4b76
+  observedGeneration: 1
+  readyReplicas: 2
+  replicas: 2
+  updateRevision: es-cluster-es-data-9c47c4b76
+  updatedReplicas: 2
+
+
+#  kubectl get configMap es-cluster-es-scripts -n elastic-system -o yaml
+apiVersion: v1
+data:
+  pre-stop-hook-script.sh: |
+    #!/usr/bin/env bash
+
+    set -eux
+
+    # This script will wait for up to $PRE_STOP_MAX_WAIT_SECONDS for $POD_IP to disappear from DNS record,
+    # then it will wait additional $PRE_STOP_ADDITIONAL_WAIT_SECONDS and exit. This slows down the process shutdown
+    # and allows to make changes to the pool gracefully, without blackholing traffic when DNS
+    # contains IP that is already inactive. Assumes $HEADLESS_SERVICE_NAME and $POD_IP env variables are defined.
+
+    # Max time to wait for pods IP to disappear from DNS.
+    # As this runs in parallel to grace period after which process is SIGKILLed,
+    # it should be set to allow enough time for the process to gracefully terminate.
+    PRE_STOP_MAX_WAIT_SECONDS=${PRE_STOP_MAX_WAIT_SECONDS:=20}
+
+    # Additional wait before shutting down Elasticsearch.
+    # It allows kube-proxy to refresh its rules and remove the terminating Pod IP.
+    # Kube-proxy refresh period defaults to every 30 seconds, but the operation itself can take much longer if
+    # using iptables with a lot of services, in which case the default 30sec might not be enough.
+    # Also gives some additional bonus time to in-flight requests to terminate, and new requests to still
+    # target the Pod IP before Elasticsearch stops.
+    PRE_STOP_ADDITIONAL_WAIT_SECONDS=${PRE_STOP_ADDITIONAL_WAIT_SECONDS:=30}
+
+    START_TIME=$(date +%s)
+    while true; do
+       ELAPSED_TIME=$(($(date +%s) - $START_TIME))
+
+       if [ $ELAPSED_TIME -gt $PRE_STOP_MAX_WAIT_SECONDS ]; then
+          exit 1
+       fi
+
+       if ! getent hosts $HEADLESS_SERVICE_NAME | grep $POD_IP; then
+          sleep $PRE_STOP_ADDITIONAL_WAIT_SECONDS
+          exit 0
+       fi
+
+       sleep 1
+    done
+  prepare-fs.sh: "#!/usr/bin/env bash\n\n\tset -eu\n\n\t# the operator only works
+    with the default ES distribution\n\tlicense=/usr/share/elasticsearch/LICENSE.txt\n\tif
+    [[ ! -f $license || $(grep -Fxc \"ELASTIC LICENSE AGREEMENT\" $license) -ne 1
+    ]]; then\n\t\t>&2 echo \"unsupported_distribution\"\n\t\texit 42\n\tfi\n\n\t#
+    compute time in seconds since the given start time\n\tfunction duration() {\n\t\tlocal
+    start=$1\n\t\tend=$(date +%s)\n\t\techo $((end-start))\n\t}\n\n\t######################\n\t#
+    \       START       #\n\t######################\n\n\tscript_start=$(date +%s)\n\n\techo
+    \"Starting init script\"\n\n\t######################\n\t#  Config linking    #\n\t######################\n\n\t#
+    Link individual files from their mount location into the config dir\n\t# to a
+    volume, to be used by the ES container\n\tln_start=$(date +%s)\n\t\n\t\techo \"Linking
+    /mnt/elastic-internal/xpack-file-realm/users to /usr/share/elasticsearch/config/users\"\n\t\tln
+    -sf /mnt/elastic-internal/xpack-file-realm/users /usr/share/elasticsearch/config/users\n\t\n\t\techo
+    \"Linking /mnt/elastic-internal/xpack-file-realm/roles.yml to /usr/share/elasticsearch/config/roles.yml\"\n\t\tln
+    -sf /mnt/elastic-internal/xpack-file-realm/roles.yml /usr/share/elasticsearch/config/roles.yml\n\t\n\t\techo
+    \"Linking /mnt/elastic-internal/xpack-file-realm/users_roles to /usr/share/elasticsearch/config/users_roles\"\n\t\tln
+    -sf /mnt/elastic-internal/xpack-file-realm/users_roles /usr/share/elasticsearch/config/users_roles\n\t\n\t\techo
+    \"Linking /mnt/elastic-internal/elasticsearch-config/elasticsearch.yml to /usr/share/elasticsearch/config/elasticsearch.yml\"\n\t\tln
+    -sf /mnt/elastic-internal/elasticsearch-config/elasticsearch.yml /usr/share/elasticsearch/config/elasticsearch.yml\n\t\n\t\techo
+    \"Linking /mnt/elastic-internal/unicast-hosts/unicast_hosts.txt to /usr/share/elasticsearch/config/unicast_hosts.txt\"\n\t\tln
+    -sf /mnt/elastic-internal/unicast-hosts/unicast_hosts.txt /usr/share/elasticsearch/config/unicast_hosts.txt\n\t\n\techo
+    \"File linking duration: $(duration $ln_start) sec.\"\n\n\n\t######################\n\t#
+    \ Files persistence #\n\t######################\n\n\t# Persist the content of
+    bin/, config/ and plugins/ to a volume,\n\t# so installed plugins files can to
+    be used by the ES container\n\tmv_start=$(date +%s)\n\t\n\t\tif [[ -z \"$(ls -A
+    /usr/share/elasticsearch/config)\" ]]; then\n\t\t\techo \"Empty dir /usr/share/elasticsearch/config\"\n\t\telse\n\t\t\techo
+    \"Copying /usr/share/elasticsearch/config/* to /mnt/elastic-internal/elasticsearch-config-local/\"\n\t\t\tcp
+    -av /usr/share/elasticsearch/config/* /mnt/elastic-internal/elasticsearch-config-local/\n\t\tfi\n\t\n\t\tif
+    [[ -z \"$(ls -A /usr/share/elasticsearch/plugins)\" ]]; then\n\t\t\techo \"Empty
+    dir /usr/share/elasticsearch/plugins\"\n\t\telse\n\t\t\techo \"Copying /usr/share/elasticsearch/plugins/*
+    to /mnt/elastic-internal/elasticsearch-plugins-local/\"\n\t\t\tcp -av /usr/share/elasticsearch/plugins/*
+    /mnt/elastic-internal/elasticsearch-plugins-local/\n\t\tfi\n\t\n\t\tif [[ -z \"$(ls
+    -A /usr/share/elasticsearch/bin)\" ]]; then\n\t\t\techo \"Empty dir /usr/share/elasticsearch/bin\"\n\t\telse\n\t\t\techo
+    \"Copying /usr/share/elasticsearch/bin/* to /mnt/elastic-internal/elasticsearch-bin-local/\"\n\t\t\tcp
+    -av /usr/share/elasticsearch/bin/* /mnt/elastic-internal/elasticsearch-bin-local/\n\t\tfi\n\t\n\techo
+    \"Files copy duration: $(duration $mv_start) sec.\"\n\n\t######################\n\t#
+    \ Volumes chown     #\n\t######################\n\n\t# chown the data and logs
+    volume to the elasticsearch user\n\t# only done when running as root, other cases
+    should be handled\n\t# with a proper security context\n\tchown_start=$(date +%s)\n\tif
+    [[ $EUID -eq 0 ]]; then\n\t\t\n\t\t\techo \"chowning /usr/share/elasticsearch/data
+    to elasticsearch:elasticsearch\"\n\t\t\tchown -v elasticsearch:elasticsearch /usr/share/elasticsearch/data\n\t\t\n\t\t\techo
+    \"chowning /usr/share/elasticsearch/logs to elasticsearch:elasticsearch\"\n\t\t\tchown
+    -v elasticsearch:elasticsearch /usr/share/elasticsearch/logs\n\t\t\n\tfi\n\techo
+    \"chown duration: $(duration $chown_start) sec.\"\n\n\t######################\n\t#
+    \ Wait for certs    #\n\t######################\n\n\tINIT_CONTAINER_LOCAL_KEY_PATH=/mnt/elastic-internal/transport-certificates/${POD_NAME}.tls.key\n\n\t#
+    wait for the transport certificates to show up\n\techo \"waiting for the transport
+    certificates (${INIT_CONTAINER_LOCAL_KEY_PATH})\"\n\twait_start=$(date +%s)\n\twhile
+    [ ! -f ${INIT_CONTAINER_LOCAL_KEY_PATH} ]\n\tdo\n\t  sleep 0.2\n\tdone\n\techo
+    \"wait duration: $(duration wait_start) sec.\"\n\n\t######################\n\t#
+    \ Certs linking     #\n\t######################\n\n\tKEY_SOURCE_PATH=/usr/share/elasticsearch/config/transport-certs/${POD_NAME}.tls.key\n\tKEY_TARGET_PATH=/mnt/elastic-internal/elasticsearch-config-local/node-transport-cert/transport.tls.key\n\n\tCERT_SOURCE_PATH=/usr/share/elasticsearch/config/transport-certs/${POD_NAME}.tls.crt\n\tCERT_TARGET_PATH=/mnt/elastic-internal/elasticsearch-config-local/node-transport-cert/transport.tls.crt\n\n\t#
+    Link individual files from their mount location into the config dir\n\t# to a
+    volume, to be used by the ES container\n\tln_start=$(date +%s)\n\n\techo \"Linking
+    $CERT_SOURCE_PATH to $CERT_TARGET_PATH\"\n\tmkdir -p $(dirname $KEY_TARGET_PATH)\n\tln
+    -sf $KEY_SOURCE_PATH $KEY_TARGET_PATH\n\techo \"Linking $CERT_SOURCE_PATH to $CERT_TARGET_PATH\"\n\tmkdir
+    -p $(dirname $CERT_TARGET_PATH)\n\tln -sf $CERT_SOURCE_PATH $CERT_TARGET_PATH\n\n\techo
+    \"Certs linking duration: $(duration $ln_start) sec.\"\n\n\t######################\n\t#
+    \        End        #\n\t######################\n\n\techo \"Init script successful\"\n\techo
+    \"Script duration: $(duration $script_start) sec.\"\n"
+  readiness-probe-script.sh: |
+    #!/usr/bin/env bash
+
+    # fail should be called as a last resort to help the user to understand why the probe failed
+    function fail {
+      timestamp=$(date --iso-8601=seconds)
+      echo "{\"timestamp\": \"${timestamp}\", \"message\": \"readiness probe failed\", "$1"}" | tee /proc/1/fd/2 2> /dev/null
+      exit 1
+    }
+
+    labels="/mnt/elastic-internal/downward-api/labels"
+
+    version=""
+    if [[ -f "${labels}" ]]; then
+      # get Elasticsearch version from the downward API
+      version=$(grep "elasticsearch.k8s.elastic.co/version" ${labels} | cut -d '=' -f 2)
+      # remove quotes
+      version=$(echo "${version}" | tr -d '"')
+    fi
+
+    READINESS_PROBE_TIMEOUT=${READINESS_PROBE_TIMEOUT:=3}
+
+    # Check if PROBE_PASSWORD_PATH is set, otherwise fall back to its former name in 1.0.0.beta-1: PROBE_PASSWORD_FILE
+    if [[ -z "${PROBE_PASSWORD_PATH}" ]]; then
+      probe_password_path="${PROBE_PASSWORD_FILE}"
+    else
+      probe_password_path="${PROBE_PASSWORD_PATH}"
+    fi
+
+    # setup basic auth if credentials are available
+    if [ -n "${PROBE_USERNAME}" ] && [ -f "${probe_password_path}" ]; then
+      PROBE_PASSWORD=$(<${probe_password_path})
+      BASIC_AUTH="-u ${PROBE_USERNAME}:${PROBE_PASSWORD}"
+    else
+      BASIC_AUTH=''
+    fi
+
+    # request Elasticsearch on /
+    ENDPOINT="${READINESS_PROBE_PROTOCOL:-https}://127.0.0.1:9200/"
+    status=$(curl -o /dev/null -w "%{http_code}" --max-time ${READINESS_PROBE_TIMEOUT} -XGET -s -k ${BASIC_AUTH} $ENDPOINT)
+    curl_rc=$?
+
+    if [[ ${curl_rc} -ne 0 ]]; then
+      fail "\"curl_rc\": \"${curl_rc}\""
+    fi
+
+    # ready if status code 200, 503 is tolerable if ES version is 6.x
+    if [[ ${status} == "200" ]] || [[ ${status} == "503" && ${version:0:2} == "6." ]]; then
+      exit 0
+    else
+      fail " \"status\": \"${status}\", \"version\":\"${version}\" "
+    fi
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2021-07-29T03:26:08Z"
+  labels:
+    common.k8s.elastic.co/type: elasticsearch
+    elasticsearch.k8s.elastic.co/cluster-name: es-cluster-es-scripts
+  managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:pre-stop-hook-script.sh: {}
+          f:prepare-fs.sh: {}
+          f:readiness-probe-script.sh: {}
+        f:metadata:
+          f:labels:
+            .: {}
+            f:common.k8s.elastic.co/type: {}
+            f:elasticsearch.k8s.elastic.co/cluster-name: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"bdc67153-e4a3-4084-8a51-973440f93ec9"}:
+              .: {}
+              f:apiVersion: {}
+              f:blockOwnerDeletion: {}
+              f:controller: {}
+              f:kind: {}
+              f:name: {}
+              f:uid: {}
+      manager: elastic-operator
+      operation: Update
+      time: "2021-07-29T03:26:08Z"
+  name: es-cluster-es-scripts
+  namespace: elastic-system
+  ownerReferences:
+    - apiVersion: elasticsearch.k8s.elastic.co/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Elasticsearch
+      name: es-cluster
+      uid: bdc67153-e4a3-4084-8a51-973440f93ec9
+  resourceVersion: "13953723"
+  selfLink: /api/v1/namespaces/elastic-system/configmaps/es-cluster-es-scripts
+  uid: c7142331-b299-41ce-9df0-08bdfa3db0ea
+
+#  root@i-8fcbtaxy:~# kubectl get Secret es-cluster-es-data-es-config -n elastic-system -o yaml
+apiVersion: v1
+data:
+  elasticsearch.yml: Y2x1c3RlcjoKICBuYW1lOiBlcy1jbHVzdGVyCmRpc2NvdmVyeToKICBzZWVkX3Byb3ZpZGVyczogZmlsZQppbmRpY2VzOgogIGJyZWFrZXI6CiAgICB0b3RhbDoKICAgICAgdXNlX3JlYWxfbWVtb3J5OiBmYWxzZQogIGZpZWxkZGF0YToKICAgIGNhY2hlOgogICAgICBzaXplOiA0MCUKICBtZW1vcnk6CiAgICBpbmRleF9idWZmZXJfc2l6ZTogMjUlCiAgcXVlcnk6CiAgICBib29sOgogICAgICBtYXhfY2xhdXNlX2NvdW50OiA0MDk2Cm5ldHdvcms6CiAgaG9zdDogMC4wLjAuMAogIHB1Ymxpc2hfaG9zdDogJHtQT0RfSVB9Cm5vZGU6CiAgZGF0YTogdHJ1ZQogIG1hc3RlcjogZmFsc2UKICBuYW1lOiAke1BPRF9OQU1FfQogIHN0b3JlOgogICAgYWxsb3dfbW1hcDogdHJ1ZQpwYXRoOgogIGRhdGE6IC91c3Ivc2hhcmUvZWxhc3RpY3NlYXJjaC9kYXRhCiAgbG9nczogL3Vzci9zaGFyZS9lbGFzdGljc2VhcmNoL2xvZ3MKeHBhY2s6CiAgbGljZW5zZToKICAgIHVwbG9hZDoKICAgICAgdHlwZXM6CiAgICAgIC0gdHJpYWwKICAgICAgLSBlbnRlcnByaXNlCiAgc2VjdXJpdHk6CiAgICBhdXRoYzoKICAgICAgcmVhbG1zOgogICAgICAgIGZpbGU6CiAgICAgICAgICBmaWxlMToKICAgICAgICAgICAgb3JkZXI6IC0xMDAKICAgICAgICBuYXRpdmU6CiAgICAgICAgICBuYXRpdmUxOgogICAgICAgICAgICBvcmRlcjogLTk5CiAgICAgIHJlc2VydmVkX3JlYWxtOgogICAgICAgIGVuYWJsZWQ6ICJmYWxzZSIKICAgIGVuYWJsZWQ6ICJ0cnVlIgogICAgaHR0cDoKICAgICAgc3NsOgogICAgICAgIGNlcnRpZmljYXRlOiAvdXNyL3NoYXJlL2VsYXN0aWNzZWFyY2gvY29uZmlnL2h0dHAtY2VydHMvdGxzLmNydAogICAgICAgIGNlcnRpZmljYXRlX2F1dGhvcml0aWVzOiAvdXNyL3NoYXJlL2VsYXN0aWNzZWFyY2gvY29uZmlnL2h0dHAtY2VydHMvY2EuY3J0CiAgICAgICAgZW5hYmxlZDogdHJ1ZQogICAgICAgIGtleTogL3Vzci9zaGFyZS9lbGFzdGljc2VhcmNoL2NvbmZpZy9odHRwLWNlcnRzL3Rscy5rZXkKICAgIHRyYW5zcG9ydDoKICAgICAgc3NsOgogICAgICAgIGNlcnRpZmljYXRlOiAvdXNyL3NoYXJlL2VsYXN0aWNzZWFyY2gvY29uZmlnL25vZGUtdHJhbnNwb3J0LWNlcnQvdHJhbnNwb3J0LnRscy5jcnQKICAgICAgICBjZXJ0aWZpY2F0ZV9hdXRob3JpdGllczoKICAgICAgICAtIC91c3Ivc2hhcmUvZWxhc3RpY3NlYXJjaC9jb25maWcvdHJhbnNwb3J0LWNlcnRzL2NhLmNydAogICAgICAgIC0gL3Vzci9zaGFyZS9lbGFzdGljc2VhcmNoL2NvbmZpZy90cmFuc3BvcnQtcmVtb3RlLWNlcnRzL2NhLmNydAogICAgICAgIGVuYWJsZWQ6ICJ0cnVlIgogICAgICAgIGtleTogL3Vzci9zaGFyZS9lbGFzdGljc2VhcmNoL2NvbmZpZy9ub2RlLXRyYW5zcG9ydC1jZXJ0L3RyYW5zcG9ydC50bHMua2V5CiAgICAgICAgdmVyaWZpY2F0aW9uX21vZGU6IGNlcnRpZmljYXRlCg==
+kind: Secret
+metadata:
+  creationTimestamp: "2021-07-29T03:26:08Z"
+  labels:
+    common.k8s.elastic.co/type: elasticsearch
+    elasticsearch.k8s.elastic.co/cluster-name: es-cluster
+    elasticsearch.k8s.elastic.co/statefulset-name: es-cluster-es-data
+  managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:elasticsearch.yml: {}
+        f:metadata:
+          f:labels:
+            .: {}
+            f:common.k8s.elastic.co/type: {}
+            f:elasticsearch.k8s.elastic.co/cluster-name: {}
+            f:elasticsearch.k8s.elastic.co/statefulset-name: {}
+          f:ownerReferences:
+            .: {}
+            k:{"uid":"bdc67153-e4a3-4084-8a51-973440f93ec9"}:
+              .: {}
+              f:apiVersion: {}
+              f:blockOwnerDeletion: {}
+              f:controller: {}
+              f:kind: {}
+              f:name: {}
+              f:uid: {}
+        f:type: {}
+      manager: elastic-operator
+      operation: Update
+      time: "2021-07-29T03:26:08Z"
+  name: es-cluster-es-data-es-config
+  namespace: elastic-system
+  ownerReferences:
+    - apiVersion: elasticsearch.k8s.elastic.co/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Elasticsearch
+      name: es-cluster
+      uid: bdc67153-e4a3-4084-8a51-973440f93ec9
+  resourceVersion: "13953765"
+  selfLink: /api/v1/namespaces/elastic-system/secrets/es-cluster-es-data-es-config
+  uid: 4dcbe64b-d2f8-42f7-a7bd-46c5b9f3faef
+type: Opaque

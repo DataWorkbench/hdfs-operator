@@ -1,0 +1,19 @@
+domain: dataworkbench.com
+layout:
+- go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: hdfs-operator
+repo: github.com/dataworkbench/hdfs-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: dataworkbench.com
+  group: qy
+  kind: HDFS
+  path: github.com/dataworkbench/hdfs-operator/api/v1
+  version: v1
+version: "3"

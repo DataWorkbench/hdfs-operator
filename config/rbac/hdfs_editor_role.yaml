@@ -1,0 +1,24 @@
+# permissions for end users to edit hdfs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: hdfs-editor-role
+rules:
+- apiGroups:
+  - qy.dataworkbench.com
+  resources:
+  - hdfs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - qy.dataworkbench.com
+  resources:
+  - hdfs/status
+  verbs:
+  - get
