@@ -2,99 +2,93 @@ package controllers
 
 import (
 	"github.com/dataworkbench/hdfs-operator/api/v1"
+	com "github.com/dataworkbench/hdfs-operator/controllers/common"
+	dn "github.com/dataworkbench/hdfs-operator/controllers/datanode"
+	jn "github.com/dataworkbench/hdfs-operator/controllers/journalnode"
+	nn "github.com/dataworkbench/hdfs-operator/controllers/namenode"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Resources struct {
+type HdfsResources struct {
+	Nodes         []NodeResources
+	Datanode      DataResources
+	CommonConfig  corev1.ConfigMap
+}
+
+type NodeResources struct {
 	StatefulSet     appsv1.StatefulSet
 	HeadlessService corev1.Service
-	//Config          settings.CanonicalConfig
+	Config          corev1.ConfigMap
 }
 
+type DataResources struct {
+	DaemonSet       appsv1.DaemonSet
+	Config          corev1.ConfigMap
+}
 
-func BuildExpectedResources(c client.Client, hdfs v1.HDFS) (Resources, error) {
-
-	// build stateful set and associated headless service
-	statefulSet, err := BuildStatefulSet(c, hdfs)
+func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
+	config ,err:=  com.BuildHdfsConfig(hdfs,com.GetName(hdfs.Name,com.CommonConfigName))
 	if err != nil {
-		return Resources{}, err
+		return HdfsResources{},err
 	}
-	headlessSvc := HeadlessService(c,&hdfs, statefulSet.Name)
+	nnResources, err := BuildNNExpectedResources(hdfs)
+	if err != nil {
+		return HdfsResources{},err
+	}
+	jnResources, err := BuildJNExpectedResources(hdfs)
+	if err != nil {
+		return HdfsResources{},err
+	}
+	dnResources, err := BuildDNExpectedResources(hdfs)
+	if err != nil {
+		return HdfsResources{},err
+	}
 
-	return Resources{
+	var nodes []NodeResources
+	return HdfsResources{
+		Nodes:         append(nodes,nnResources,jnResources),
+		Datanode:      dnResources,
+		CommonConfig:  config,
+	},nil
+}
+
+func BuildNNExpectedResources(hdfs v1.HDFS) (NodeResources, error) {
+	cfg := nn.BuildConfigMap(hdfs)
+	statefulSet, err := nn.BuildStatefulSet(hdfs)
+	if err != nil {
+		return NodeResources{}, err
+	}
+	headlessSvc := com.HeadlessService(&hdfs, statefulSet.Name,nn.GetDefaultServicePorts())
+	return NodeResources{
 		StatefulSet:     statefulSet,
 		HeadlessService: headlessSvc,
-		//Config:          cfg,
+		Config:          cfg,
 	},nil
-
 }
 
-// HeadlessService returns a headless service for the given StatefulSet
-func HeadlessService( c client.Client ,hdfs *v1.HDFS, ssetName string) corev1.Service {
-	nsn := ExtractNamespacedName(hdfs)
-	return corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: nsn.Namespace,
-			Name:      ssetName,
-			Labels:    NewStatefulSetLabels(nsn, ssetName),
-		},
-		Spec: corev1.ServiceSpec{
-			Type:      corev1.ServiceTypeClusterIP,
-			ClusterIP: corev1.ClusterIPNone,
-			Selector:  NewStatefulSetLabels(nsn, ssetName),
-			Ports: getDefaultServicePorts(),
-			},
-		}
-}
-
-func BuildStatefulSet(c client.Client, hdfs v1.HDFS) (appsv1.StatefulSet, error) {
-
-	namenode := hdfs.Spec.Namenode
-	statefulSetName := namenode.Name //hdfs.StatefulSetName(hdfs.Name, hdfs.Spec.Namenode.Name)
-
-	// ssetSelector is used to match the StatefulSet pods
-	ssetSelector := NewStatefulSetLabels(ExtractNamespacedName(&hdfs), statefulSetName)
-
-	// build pod template
-	podTemplate, err := BuildPodTemplateSpec(c, hdfs)
+func BuildJNExpectedResources(hdfs v1.HDFS) (NodeResources, error) {
+	// build stateful set and associated headless service
+	statefulSet, err := jn.BuildStatefulSet( hdfs)
 	if err != nil {
-		return appsv1.StatefulSet{}, err
+		return NodeResources{}, err
 	}
-
-	// build sset labels on top of the selector
-	ssetLabels := make(map[string]string)
-	for k, v := range ssetSelector {
-		ssetLabels[k] = v
-	}
-
-	sset := appsv1.StatefulSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: hdfs.Namespace,
-			Name:      statefulSetName,
-			Labels:    ssetLabels,
-		},
-		Spec: appsv1.StatefulSetSpec{
-			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
-				Type: appsv1.OnDeleteStatefulSetStrategyType,
-			},
-			// use default revision history limit
-			RevisionHistoryLimit: nil,
-			ServiceName: statefulSetName, //matching the StatefulSet labels
-			Selector: &metav1.LabelSelector{
-				MatchLabels: ssetSelector,
-			},
-
-			Replicas:             &hdfs.Spec.Namenode.Replicas,
-			VolumeClaimTemplates: namenode.VolumeClaimTemplates,
-			Template:             podTemplate,
-		},
-	}
-
-	return sset, nil
-	
+	headlessSvc := com.HeadlessService(&hdfs, statefulSet.Name,jn.GetDefaultServicePorts())
+	return NodeResources{
+		StatefulSet:     statefulSet,
+		HeadlessService: headlessSvc,
+	},nil
 }
 
+func BuildDNExpectedResources(hdfs v1.HDFS) (DataResources, error) {
+	cfg := dn.BuildConfigMap(hdfs)
+	daemonSet, err := dn.BuildDaemonSet(hdfs)
+	if err != nil {
+		return DataResources{}, err
+	}
+	return DataResources{
+		DaemonSet:     daemonSet,
+		Config:          cfg,
+	},nil
+}
 

@@ -42,7 +42,6 @@ type Params struct {
 	//PostUpdate func()
 }
 
-
 func (p Params) CheckNilValues() error {
 	if p.Reconciled == nil {
 		return errors.New("Reconciled must not be nil")
