@@ -33,14 +33,14 @@ type HDFSSpec struct {
 
 	Journalnode   Journalnode    `json:"journalnode"`
 
-	Datanode      datanode      `json:"datanode"`
+	Datanode      Datanode      `json:"datanode"`
 }
 
 type NamenodeSet struct {
 
 	Name string `json:"name"`
 
-	Replicas int32 `json:"replicas"`
+	Replicas int32 `json:"replicas"`  // default 2
 
 	PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 
@@ -60,9 +60,11 @@ type Journalnode struct {
 
 }
 
-type datanode struct {
+type Datanode struct {
 
 	Name string `json:"name"`
+
+	Replicas int32 `json:"replicas"`
 
 	PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 

@@ -12,11 +12,8 @@ type DefaultDriver struct {
 	Hdfs v1.HDFS
 	// Client is used to access the Kubernetes API.
 	Client   client.Client
-
 	Recorder record.EventRecorder
 
-	//// LicenseChecker is used for some features to check if an appropriate license is setup
-	//LicenseChecker commonlicense.Checker
 	//// State holds the accumulated state during the reconcile loop
 	//ReconcileState *reconcile.State
 	//// Observers that observe es clusters state.
@@ -31,7 +28,6 @@ type DefaultDriver struct {
 func (d *DefaultDriver) Reconcile(ctx context.Context) *Results {
 
 	results :=&Results{ctx: ctx}
-
 	//ObservedStateResolver Monitor the status of components such as NN and DN.
 	//For example, NN is not in activity status, or some DN and NN lose heartbeat
 	//Then an event is sent to the relevant channel of the watch capability provided by k8s controller runtime
@@ -41,23 +37,19 @@ func (d *DefaultDriver) Reconcile(ctx context.Context) *Results {
 	// reconcile StatefulSets and nodes configuration
 	_ = d.reconcileNodeSpecs(ctx)
 	//results = results.WithResults(res)
-
 	//d.ReconcileState.UpdateHdfsState(*resourcesState, observedState)
 
 	return results
 }
 
 func (d *DefaultDriver) reconcileNodeSpecs(ctx context.Context) *Results {
-
 	results :=&Results{}
-
 	//step1  Parsing customer kind HDFS
-	expectedResources, err := BuildExpectedResources(d.Client, d.Hdfs)
+	expectedResources, err := BuildExpectedResources(d.Hdfs)
 	if err != nil {
 		return results.WithError(err)
 	}
-
-	//step2 apply expected k8s kind resources and scale up.
+	//step2 apply expected k8s kind
 	upscaleResults, err := HandleUpscaleAndSpecChanges(d.Client, d.Hdfs, expectedResources )
 
 	if upscaleResults.Requeue {

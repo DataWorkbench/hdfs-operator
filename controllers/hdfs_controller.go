@@ -18,17 +18,13 @@ package controllers
 
 import (
 	"context"
-	//"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
+	"github.com/dataworkbench/hdfs-operator/api/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	//"sigs.k8s.io/controller-runtime/pkg/log"
-	"github.com/dataworkbench/hdfs-operator/api/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // HDFSReconciler reconciles a HDFS object
