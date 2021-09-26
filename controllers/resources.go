@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"github.com/dataworkbench/hdfs-operator/api/v1"
-	com "github.com/dataworkbench/hdfs-operator/controllers/common"
+	com "github.com/dataworkbench/hdfs-operator/common"
 	dn "github.com/dataworkbench/hdfs-operator/controllers/datanode"
 	jn "github.com/dataworkbench/hdfs-operator/controllers/journalnode"
 	nn "github.com/dataworkbench/hdfs-operator/controllers/namenode"
@@ -11,84 +11,84 @@ import (
 )
 
 type HdfsResources struct {
-	Nodes         []NodeResources
-	Datanode      DataResources
-	CommonConfig  corev1.ConfigMap
-}
-
-type NodeResources struct {
-	StatefulSet     appsv1.StatefulSet
-	HeadlessService corev1.Service
-	Config          corev1.ConfigMap
-}
-
-type DataResources struct {
-	DaemonSet       appsv1.DaemonSet
-	Config          corev1.ConfigMap
+	StatefulSets  []appsv1.StatefulSet
+	Datanode      appsv1.DaemonSet
+	ConfigMaps    []corev1.ConfigMap
+	Services      []corev1.Service
 }
 
 func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
-	config ,err:=  com.BuildHdfsConfig(hdfs,com.GetName(hdfs.Name,com.CommonConfigName))
+
+	configs, err := BuildConfigMaps(hdfs)
 	if err != nil {
-		return HdfsResources{},err
-	}
-	nnResources, err := BuildNNExpectedResources(hdfs)
-	if err != nil {
-		return HdfsResources{},err
-	}
-	jnResources, err := BuildJNExpectedResources(hdfs)
-	if err != nil {
-		return HdfsResources{},err
-	}
-	dnResources, err := BuildDNExpectedResources(hdfs)
-	if err != nil {
-		return HdfsResources{},err
+		return HdfsResources{}, err
 	}
 
-	var nodes []NodeResources
-	return HdfsResources{
-		Nodes:         append(nodes,nnResources,jnResources),
-		Datanode:      dnResources,
-		CommonConfig:  config,
-	},nil
-}
-
-func BuildNNExpectedResources(hdfs v1.HDFS) (NodeResources, error) {
-	cfg := nn.BuildConfigMap(hdfs)
-	statefulSet, err := nn.BuildStatefulSet(hdfs)
+	services, err := BuildServices(hdfs)
 	if err != nil {
-		return NodeResources{}, err
+		return HdfsResources{}, err
 	}
-	headlessSvc := com.HeadlessService(&hdfs, statefulSet.Name,nn.GetDefaultServicePorts())
-	return NodeResources{
-		StatefulSet:     statefulSet,
-		HeadlessService: headlessSvc,
-		Config:          cfg,
-	},nil
-}
 
-func BuildJNExpectedResources(hdfs v1.HDFS) (NodeResources, error) {
-	// build stateful set and associated headless service
-	statefulSet, err := jn.BuildStatefulSet( hdfs)
+	statefulSets, err := BuildStatefulSets(hdfs)
 	if err != nil {
-		return NodeResources{}, err
+		return HdfsResources{}, err
 	}
-	headlessSvc := com.HeadlessService(&hdfs, statefulSet.Name,jn.GetDefaultServicePorts())
-	return NodeResources{
-		StatefulSet:     statefulSet,
-		HeadlessService: headlessSvc,
-	},nil
-}
 
-func BuildDNExpectedResources(hdfs v1.HDFS) (DataResources, error) {
-	cfg := dn.BuildConfigMap(hdfs)
 	daemonSet, err := dn.BuildDaemonSet(hdfs)
 	if err != nil {
-		return DataResources{}, err
+		return HdfsResources{}, err
 	}
-	return DataResources{
-		DaemonSet:     daemonSet,
-		Config:          cfg,
-	},nil
+
+	return HdfsResources{
+		StatefulSets: statefulSets,
+		Datanode:     daemonSet,
+		ConfigMaps: configs ,
+		Services:     services,
+	}, nil
 }
 
+func BuildConfigMaps(hdfs v1.HDFS) (c []corev1.ConfigMap,err error) {
+
+	config, err := com.BuildHdfsConfig(hdfs, com.GetName(hdfs.Name, com.CommonConfigName))
+	if err != nil {
+		return c, err
+	}
+	nnScripts := nn.BuildConfigMap(hdfs)
+	dnScripts := dn.BuildConfigMap(hdfs)
+
+	return append(c, config, nnScripts, dnScripts), nil
+}
+
+func BuildServices(hdfs v1.HDFS) (svc []corev1.Service,err error) {
+
+	nnSvc := com.HeadlessService(hdfs,
+		com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name),
+		nn.GetDefaultServicePorts())
+	jnSvc := com.HeadlessService(hdfs, com.GetName(hdfs.Name,
+		hdfs.Spec.Journalnode.Name),
+		jn.GetDefaultServicePorts())
+
+	return append(svc, nnSvc, jnSvc ), nil
+}
+
+func BuildStatefulSets(hdfs v1.HDFS) (s []appsv1.StatefulSet,err error) {
+
+	nnStatefulSet, err := nn.BuildStatefulSet(hdfs)
+	if err != nil {
+		return s, err
+	}
+	jnStatefulSet, err := jn.BuildStatefulSet(hdfs)
+	if err != nil {
+		return s, err
+	}
+
+	//if hdfs.Spec.ZkQuorum == "" {
+	//	zkStatefulSet, err := zk.BuildStatefulSet(hdfs)
+	//	if err != nil {
+	//		return s, err
+	//	}
+	//	s = append(s, zkStatefulSet)
+	//}
+
+	return append(s, nnStatefulSet, jnStatefulSet ), nil
+}

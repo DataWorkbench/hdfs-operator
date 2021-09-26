@@ -31,7 +31,7 @@ import (
 type HDFSReconciler struct {
 	client.Client
 	recorder record.EventRecorder
-	Scheme *runtime.Scheme
+	Scheme   *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=qy.dataworkbench.com,resources=hdfs,verbs=get;list;watch;create;update;patch;delete
@@ -51,10 +51,10 @@ func (r *HDFSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	//_ = log.FromContext(ctx)
 
 	// Fetch the HDFS instance
-	var hdfs  v1.HDFS
+	var hdfs v1.HDFS
 	requeue, err := r.fetchHdfsKind(ctx, req, &hdfs)
 	if err != nil || requeue {
-		return reconcile.Result{}, nil    //tracing.CaptureError(ctx, err)
+		return reconcile.Result{}, nil //tracing.CaptureError(ctx, err)
 	}
 
 	state := NewState(hdfs)
@@ -65,9 +65,9 @@ func (r *HDFSReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 func (r *HDFSReconciler) fetchHdfsKind(ctx context.Context, request reconcile.Request, hdfs *v1.HDFS) (bool, error) {
 
-	err := r.Client.Get(ctx,request.NamespacedName,hdfs)  //FetchWithAssociations
+	err := r.Client.Get(ctx, request.NamespacedName, hdfs) //FetchWithAssociations
 	if err != nil {
-		if errors.IsNotFound(err) {  // Object not found,
+		if errors.IsNotFound(err) { // Object not found,
 			// Object not found, cleanup in-memory state. Children resources are garbage-collected either by
 			// the operator (see `onDelete`), either by k8s through the ownerReference mechanism.
 			//return true, r.onDelete(types.NamespacedName{
@@ -76,7 +76,7 @@ func (r *HDFSReconciler) fetchHdfsKind(ctx context.Context, request reconcile.Re
 			//})
 			return true, err
 		}
-		return true, err  // Error reading the object - requeue the request.
+		return true, err // Error reading the object - requeue the request.
 	}
 	return false, nil
 }
@@ -90,15 +90,15 @@ func (r *HDFSReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *HDFSReconciler) internalReconcile(ctx context.Context, hdfs v1.HDFS, state *State) *Results {
 
-	results :=&Results{ ctx: ctx }
+	results := &Results{ctx: ctx}
 
 	if hdfs.IsMarkedForDeletion() {
 		// resource will be deleted, nothing to reconcile
-		return results.WithError(nil)   //return results.WithError(r.onDelete(k8s.ExtractNamespacedName(&es)))
+		return results.WithError(nil) //return results.WithError(r.onDelete(k8s.ExtractNamespacedName(&es)))
 	}
 
 	driver := DefaultDriver{
-		Hdfs: hdfs,
+		Hdfs:   hdfs,
 		Client: r.Client,
 		//ReconcileState:     state,
 		Recorder: r.recorder,

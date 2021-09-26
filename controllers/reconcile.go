@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	clog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -73,11 +72,11 @@ func ReconcileResource(params Params) error {
 	}
 	kind := gvk.Kind
 
-	if params.Owner != nil {
-		if err := controllerutil.SetControllerReference(params.Owner, params.Expected, scheme.Scheme); err != nil {
-			return err
-		}
-	}
+	//if params.Owner != nil {
+	//	if err := controllerutil.SetControllerReference(params.Owner, params.Expected, scheme.Scheme); err != nil {
+	//		return err
+	//	}
+	//}
 
 	create := func() error {
 		log.Info("Creating resource", "kind", kind, "namespace", namespace, "name", name)

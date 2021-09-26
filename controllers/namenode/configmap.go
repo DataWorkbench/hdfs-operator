@@ -2,33 +2,37 @@ package namenode
 
 import (
 	v1 "github.com/dataworkbench/hdfs-operator/api/v1"
-	com "github.com/dataworkbench/hdfs-operator/controllers/common"
+	com "github.com/dataworkbench/hdfs-operator/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
-	NamenodeScripts     = "namenode-scripts"
-	FormatConfigKey     = "format-and-run.sh"
+	NamenodeScripts = "namenode-scripts"
+	FormatConfigKey = "format-and-run.sh"
 )
 
-func BuildConfigMap(hdfs v1.HDFS)  corev1.ConfigMap{
+func BuildConfigMap(hdfs v1.HDFS) corev1.ConfigMap {
 
-	configmap := types.NamespacedName{Namespace: hdfs.Namespace, Name: com.GetName(hdfs.Name,NamenodeScripts)}
+	configmap := types.NamespacedName{Namespace: hdfs.Namespace, Name: com.GetName(hdfs.Name, NamenodeScripts)}
 
 	return corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configmap.Name,
 			Namespace: configmap.Namespace,
 			Labels:    com.NewLabels(configmap),
+			OwnerReferences: com.GetOwnerReference(hdfs),
 		},
 		Data: map[string]string{
 			FormatConfigKey: ContainerArgsScript,
 		},
 	}
 }
-
 
 const ContainerArgsScript = `#!/usr/bin/env bash
     # Exit on error. Append "|| true" if you expect an error.
