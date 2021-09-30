@@ -11,11 +11,11 @@ const (
 	QydwdDatanodeImage     = "qydwd/hadoop-datanode:2.9.2"
 )
 
-// BuildDataNodePod builds a new PodTemplateSpec for DataNode.
-func BuildDataNodePod(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
-	volumes, volumeMounts := buildVolumes(hdfs.Name)
+// BuildPodTemplateSpec builds a new PodTemplateSpec for DataNode.
+func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
+	volumes, volumeMounts := buildVolumes(hdfs.Name,hdfs.Spec.Datanode)
 
-	container := buildContainer(hdfs.Spec.Journalnode.Name, volumeMounts, GetImage(hdfs.Spec.Version))
+	container := buildContainer(hdfs.Spec.Datanode.Name, volumeMounts, GetImage(hdfs.Spec.Version))
 
 	builder := &com.PodTemplateBuilder{}
 	builder.WithContainers(container).
@@ -29,25 +29,30 @@ func BuildDataNodePod(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplat
 	return builder.PodTemplate, nil
 }
 
-func buildVolumes(name string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func buildVolumes(name string, nodeSpec v1.Datanode) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 
 	configVolume := com.NewConfigMapVolume(com.GetName(name, com.CommonConfigName), com.VolumesConfigMapName, com.HdfsConfigMountPath)
 
 	scriptsVolume := com.NewConfigMapVolumeWithMode(com.GetName(name, DatanodeScripts), DNScriptsVolumeName, DNScriptsVolumeMountPath, 0744)
 
-	hostPathVolume := NewHostPathVolume(DNDataVolumeName, DNDataHostPath, DNDataVolumeMountPath)
+	// append container volumeMounts from PVCs
+	persistentVolumes := make([]corev1.VolumeMount, 0, len(nodeSpec.VolumeClaimTemplates))
+	for _, claimTemplate := range nodeSpec.VolumeClaimTemplates {
+		persistentVolumes = append(persistentVolumes, corev1.VolumeMount{
+			Name:      claimTemplate.Name,
+			MountPath: "/hadoop/dfs/data/0",
+		})
+	}
 
-	//DaemonSetSpec.Template.Spec.Volume
+	//SSetSpec.Template.Spec.Volume
 	volumes = append(volumes,
 		scriptsVolume.Volume(),
 		configVolume.Volume(),
-		hostPathVolume.Volume(),
 	)
-	//DaemonSetSpec.Template.Spec.containers.volumeMounts
-	volumeMounts = append(volumeMounts,
+	//SSetSpec.Template.Spec.containers.volumeMounts
+	volumeMounts = append(persistentVolumes,
 		scriptsVolume.VolumeMount(),
 		configVolume.VolumeMount(),
-		hostPathVolume.VolumeMount(),
 	)
 
 	return volumes, volumeMounts
@@ -81,42 +86,6 @@ func envVars() []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{Name: "HADOOP_CUSTOM_CONF_DIR", Value: "/etc/hadoop-custom-conf"},
 		{Name: "MULTIHOMED_NETWORK", Value: "0"},
-	}
-}
-
-// HostPathVolume defines a volume to expose a configmap
-type HostPathVolume struct {
-	name      string //volume and volumeMounts associated name
-	hostPath  string //volumes.hostPath.path
-	mountPath string
-}
-
-// NewHostPathVolume creates a new ConfigMapVolume
-func NewHostPathVolume(name, hostPath, mountPath string) HostPathVolume {
-	return HostPathVolume{
-		name:      name,
-		hostPath:  hostPath,
-		mountPath: mountPath,
-	}
-}
-
-// Volume returns the k8s volume.
-func (cm HostPathVolume) Volume() corev1.Volume {
-	return corev1.Volume{
-		Name: cm.name,
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: cm.hostPath,
-			},
-		},
-	}
-}
-
-// VolumeMount returns the k8s volume mount.
-func (cm HostPathVolume) VolumeMount() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      cm.name,
-		MountPath: cm.mountPath,
 	}
 }
 

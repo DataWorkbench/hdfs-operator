@@ -37,9 +37,9 @@ func HandleUpscaleAndSpecChanges(c client.Client, hdfs hdfsv1.HDFS, res HdfsReso
 		}
 	}
 
-	_ /*reconciled*/, err := ReconcileDaemonSet(c, hdfs, res.Datanode)
+	_ /*reconciled*/, err := ReconcileStatefulSet(c, hdfs, res.Datanode)
 	if err != nil {
-		return results, fmt.Errorf("reconcile DaemonSet: %w", err)
+		return results, fmt.Errorf("reconcile StatefulSet: %w", err)
 	}
 
 	// update actual with the reconciled ones for next steps to work with up-to-date information

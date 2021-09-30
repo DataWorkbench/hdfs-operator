@@ -12,7 +12,7 @@ import (
 
 type HdfsResources struct {
 	StatefulSets  []appsv1.StatefulSet
-	Datanode      appsv1.DaemonSet
+	Datanode      appsv1.StatefulSet
 	ConfigMaps    []corev1.ConfigMap
 	Services      []corev1.Service
 }
@@ -34,15 +34,15 @@ func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
 		return HdfsResources{}, err
 	}
 
-	daemonSet, err := dn.BuildDaemonSet(hdfs)
+	dnSet, err := dn.BuildStatefulSet(hdfs)
 	if err != nil {
 		return HdfsResources{}, err
 	}
 
 	return HdfsResources{
 		StatefulSets: statefulSets,
-		Datanode:     daemonSet,
-		ConfigMaps: configs ,
+		Datanode:     dnSet,
+		ConfigMaps:   configs ,
 		Services:     services,
 	}, nil
 }

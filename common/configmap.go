@@ -79,13 +79,9 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 	nnPrefix := GetName(hdfs.Name, hdfs.Spec.Namenode.Name)
 	nnService := nnPrefix+"."+hdfs.Namespace+".svc.cluster.local"
 
-	//获取journalnode pod name service
 	jnPrefix := GetName(hdfs.Name, hdfs.Spec.Journalnode.Name)
 	jnService := jnPrefix+"."+hdfs.Namespace+".svc.cluster.local"
 	editsDir :=  "qjournal://"+ jnPrefix+"-0." + jnService+":8485;"+ jnPrefix+"-1."+ jnService+":8485;"+ jnPrefix+"-2."+ jnService+":8485" + "/hdfs-k8s"
-
-	//var nnRpc = property{}
-	//var nnHttp = property{}
 
 	c.Configuration = append(c.Configuration, property{
 		Name:  "dfs.nameservices",
@@ -96,23 +92,18 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 	}, property{
 		Name:  "dfs.namenode.rpc-address.hdfs-k8s." + "nn0",
 		Value: nnPrefix+"-0." + nnService + ":8020",
-		//Value: "my-hdfs-namenode-0." + "my-hdfs-namenode.default.svc.cluster.local" + ":8020",
 	}, property{
 		Name:  "dfs.namenode.rpc-address.hdfs-k8s.nn1",
 		Value: nnPrefix+"-1." + nnService + ":8020",
-		//Value: "my-hdfs-namenode-1." + "my-hdfs-namenode.default.svc.cluster.local" + ":8020",
 	}, property{
 		Name:  "dfs.namenode.http-address.hdfs-k8s.nn0",
 		Value: nnPrefix+"-0." + nnService +":50070",
-		//Value: "my-hdfs-namenode-0.my-hdfs-namenode.default.svc.cluster.local:50070",
 	}, property{
 		Name:  "dfs.namenode.http-address.hdfs-k8s.nn1",
 		Value: nnPrefix+"-1." + nnService +":50070",
-		//Value: "my-hdfs-namenode-1.my-hdfs-namenode.default.svc.cluster.local:50070",
 	}, property{
 		Name:  "dfs.namenode.shared.edits.dir",
 		Value: editsDir,
-		//Value: "qjournal://my-hdfs-journalnode-1.my-hdfs-journalnode.default.svc.cluster.local:8485;my-hdfs-journalnode-2.my-hdfs-journalnode.default.svc.cluster.local:8485;my-hdfs-journalnode-0.my-hdfs-journalnode.default.svc.cluster.local:8485/hdfs-k8s",
 	}, property{
 		Name:  "dfs.ha.automatic-failover.enabled",
 		Value: "true",
@@ -133,7 +124,7 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 		Value: "false",
 	}, property{
 		Name:  "dfs.datanode.data.dir",
-		Value: "/mnt/hdfs/dn-data",
+		Value: "/hadoop/dfs/data/0",
 	})
 	return xml.MarshalIndent(c, " ", " ")
 }

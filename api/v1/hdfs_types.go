@@ -50,7 +50,6 @@ type NamenodeSet struct {
 	StorageClass  string `json:"storageClass"`
 
 	Replicas int32 `json:"replicas"` // default 2
-	//PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
@@ -68,7 +67,13 @@ type Journalnode struct {
 
 type Datanode struct {
 	Name string `json:"name"`
-	//datadir []string `json:"datadir"`  //dfs.datanode.data.dir 配置多目录
+	//datadir []string `json:"datadir"`
+
+	StorageClass  string `json:"storageClass"`
+
+	Replicas int32 `json:"replicas"`
+
+	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 type ClusterConfig struct {
