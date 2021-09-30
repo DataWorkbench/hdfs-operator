@@ -13,6 +13,8 @@ const (
 	QydwdImage             = "qydwd/hadoop-namenode:2.9.2"
 )
 
+var defaultOptional = true
+
 // BuildPodTemplateSpec builds a new PodTemplateSpec for NameNode.
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name, hdfs.Spec.Namenode)
@@ -24,6 +26,9 @@ func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTem
 		WithSpecVolumes(volumes...).
 		WithDNSPolicy(corev1.DNSClusterFirst).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
+		WithHostNetwork(defaultOptional).
+		WithHostPID(defaultOptional).
+		WithDNSPolicy(corev1.DNSClusterFirstWithHostNet).
 		WithTemplateMetadata(labels)
 
 	return builder.PodTemplate, nil
