@@ -74,7 +74,7 @@ spec:
       volumes:
         - name: hdfs-config
           configMap:
-            name: my-hdfs-config
+            name: my-hdfs-common-config
   volumeClaimTemplates:
     - metadata:
         name: editdir

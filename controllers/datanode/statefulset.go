@@ -1,4 +1,4 @@
-package namenode
+package datanode
 
 import (
 	v1 "github.com/dataworkbench/hdfs-operator/api/v1"
@@ -7,12 +7,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+
+const (
+	DNDataVolumeName      = "hdfs-data-0"
+	DNDataVolumeMountPath = "/hadoop/dfs/data/0"
+	DNDataHostPath        = "/mnt/hdfs/dn-data"
+
+	DNScriptsVolumeName      = "dn-scripts"
+	DNScriptsVolumeMountPath = "/dn-scripts"
+)
+
+var defaultOptional = true
+
 func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
-	statefulSetName := com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name)
+	statefulSetName := com.GetName(hdfs.Name, hdfs.Spec.Datanode.Name)
 	// ssetSelector is used to match the StatefulSet pods
 	ssetSelector := com.NewStatefulSetLabels(com.ExtractNamespacedName(&hdfs), statefulSetName)
-	// add default PVCs to the node spec if no user defined PVCs exist
-	hdfs.Spec.Namenode.VolumeClaimTemplates = com.AppendDefaultPVCs(hdfs.Spec.Namenode.VolumeClaimTemplates, "metadatadir", hdfs.Spec.Namenode.StorageClass)
+
+	hdfs.Spec.Datanode.VolumeClaimTemplates = com.AppendDefaultPVCs(hdfs.Spec.Datanode.VolumeClaimTemplates,
+		DNDataVolumeName, hdfs.Spec.Datanode.StorageClass)
+
 	// build pod template,associate PVCs to pod container
 	podTemplate, err := BuildPodTemplateSpec(hdfs, ssetSelector)
 	if err != nil {
@@ -31,12 +45,16 @@ func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 			OwnerReferences: com.GetOwnerReference(hdfs),
 		},
 		Spec: appsv1.StatefulSetSpec{
-			ServiceName: statefulSetName,
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.OnDeleteStatefulSetStrategyType,
+			},
+			RevisionHistoryLimit: nil,
+			//ServiceName:          statefulSetName,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: ssetSelector,
 			},
-			Replicas:             &hdfs.Spec.Namenode.Replicas,
-			VolumeClaimTemplates: hdfs.Spec.Namenode.VolumeClaimTemplates,
+			Replicas:             &hdfs.Spec.Datanode.Replicas,
+			VolumeClaimTemplates: hdfs.Spec.Datanode.VolumeClaimTemplates,
 			Template:             podTemplate,
 		},
 	}

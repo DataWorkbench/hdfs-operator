@@ -29,49 +29,57 @@ type HDFSSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Namenode      NamenodeSet   `json:"namenode"`
+	Version string `json:"version"`
 
-	Journalnode   Journalnode    `json:"journalnode"`
+	//StorageClass  string `json:"storageClass"`
 
-	Datanode      Datanode      `json:"datanode"`
+	Namenode NamenodeSet `json:"namenode"`
+
+	Journalnode Journalnode `json:"journalnode"`
+
+	Datanode Datanode `json:"datanode"`
+
+	ZkQuorum  string `json:"zkQuorum"`
+
+	ClusterConfig []ClusterConfig  `json:"clusterConfig"`
 }
 
 type NamenodeSet struct {
-
 	Name string `json:"name"`
 
-	Replicas int32 `json:"replicas"`  // default 2
+	StorageClass  string `json:"storageClass"`
 
-	PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
+	Replicas int32 `json:"replicas"` // default 2
 
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
-
 }
 
 type Journalnode struct {
-
 	Name string `json:"name"`
 
-	Replicas int32 `json:"replicas"`
+	StorageClass  string `json:"storageClass"`
 
-	PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
+	Replicas int32 `json:"replicas"`
+	//PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
-
 }
 
 type Datanode struct {
-
 	Name string `json:"name"`
+	//datadir []string `json:"datadir"`
+
+	StorageClass  string `json:"storageClass"`
 
 	Replicas int32 `json:"replicas"`
 
-	PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
-
 	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
-
 }
 
+type ClusterConfig struct {
+	Property string `json:"property"`
+	Value    string `json:"value"`
+}
 
 // HDFSStatus defines the observed state of HDFS
 type HDFSStatus struct {
@@ -95,6 +103,7 @@ type HDFS struct {
 func (in HDFS) IsMarkedForDeletion() bool {
 	return !in.DeletionTimestamp.IsZero()
 }
+
 //+kubebuilder:object:root=true
 
 // HDFSList contains a list of HDFS

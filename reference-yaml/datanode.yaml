@@ -99,4 +99,4 @@ spec:
             path: /mnt/hdfs/dn-data
         - name: hdfs-config
           configMap:
-            name: my-hdfs-config
+            name: my-hdfs-common-config

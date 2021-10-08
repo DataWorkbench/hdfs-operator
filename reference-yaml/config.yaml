@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: my-hdfs-config
+  name: my-hdfs-common-config
   labels:
     app: hdfs-client
     chart: hdfs-config-k8s-0.1.0

@@ -9,7 +9,7 @@ import (
 
 var defaultOptional = false
 
-func AppendDefaultPVCs(existing []corev1.PersistentVolumeClaim,name string,sc string) []corev1.PersistentVolumeClaim {
+func AppendDefaultPVCs(existing []corev1.PersistentVolumeClaim, name string, sc string) []corev1.PersistentVolumeClaim {
 	if len(existing) > 0 {
 		return existing
 	}
@@ -91,20 +91,13 @@ func NewConfigMapVolume(configMapName, name, mountPath string) ConfigMapVolume {
 // from a user-provided pod template. It focuses on building a pod with
 // one main Container.
 type PodTemplateBuilder struct {
-	PodTemplate        corev1.PodTemplateSpec
-	containerDefaulter *corev1.Container
+	PodTemplate corev1.PodTemplateSpec
+	//containerDefaulter *corev1.Container
 }
 
-// NewPodTemplateBuilder returns an initialized PodTemplateBuilder
-func NewPodTemplateBuilder(base corev1.PodTemplateSpec) *PodTemplateBuilder {
-	builder := &PodTemplateBuilder{
-		PodTemplate:   *base.DeepCopy(),
-	}
-	return builder
-}
 
 func (b *PodTemplateBuilder) WithContainers(container corev1.Container) *PodTemplateBuilder {
-	b.PodTemplate.Spec.Containers = append(b.PodTemplate.Spec.Containers,container)
+	b.PodTemplate.Spec.Containers = append(b.PodTemplate.Spec.Containers, container)
 	return b
 }
 
@@ -135,11 +128,16 @@ func (b *PodTemplateBuilder) WithRestartPolicy(restartPolicy corev1.RestartPolic
 }
 
 func (b *PodTemplateBuilder) WithHostNetwork(hostNetwork bool) *PodTemplateBuilder {
-		b.PodTemplate.Spec.HostNetwork = hostNetwork
+	b.PodTemplate.Spec.HostNetwork = hostNetwork
 	return b
 }
 
 func (b *PodTemplateBuilder) WithHostPID(hostPID bool) *PodTemplateBuilder {
 	b.PodTemplate.Spec.HostPID = hostPID
+	return b
+}
+
+func (b *PodTemplateBuilder) WithTemplateMetadata(labels map[string]string) *PodTemplateBuilder {
+	b.PodTemplate.Labels = labels
 	return b
 }

@@ -143,6 +143,7 @@ spec:
           # The start script is provided by a config map.
           args:
             - /entrypoint.sh "/nn-scripts/format-and-run.sh"
+            #- ["/entrypoint.sh", "/nn-scripts/format-and-run.sh"]
           ports:
             - containerPort: 8020
               name: fs
@@ -169,7 +170,7 @@ spec:
             defaultMode: 0744
         - name: hdfs-config
           configMap:
-            name: my-hdfs-config
+            name: my-hdfs-common-config
   volumeClaimTemplates:
     - metadata:
         name: metadatadir
