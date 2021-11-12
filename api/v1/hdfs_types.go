@@ -31,7 +31,7 @@ type HDFSSpec struct {
 
 	Version string `json:"version"`
 
-	//StorageClass  string `json:"storageClass"`
+	Image string `json:"image"`
 
 	Namenode NamenodeSet `json:"namenode"`
 
@@ -47,7 +47,11 @@ type HDFSSpec struct {
 type NamenodeSet struct {
 	Name string `json:"name"`
 
+	Image string `json:"image,omitempty"`
+
 	StorageClass  string `json:"storageClass"`
+
+	//Capacity      string  `json:"capacity"`
 
 	Replicas int32 `json:"replicas"` // default 2
 
@@ -57,7 +61,11 @@ type NamenodeSet struct {
 type Journalnode struct {
 	Name string `json:"name"`
 
+	Image string `json:"image,omitempty"`
+
 	StorageClass  string `json:"storageClass"`
+
+	//Capacity      string  `json:"capacity"`
 
 	Replicas int32 `json:"replicas"`
 	//PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
@@ -67,14 +75,25 @@ type Journalnode struct {
 
 type Datanode struct {
 	Name string `json:"name"`
-	//datadir []string `json:"datadir"`
 
-	StorageClass  string `json:"storageClass"`
+	Image string `json:"image,omitempty"`
 
 	Replicas int32 `json:"replicas"`
 
-	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+	StorageClass  string `json:"storageClass"`
+
+	Capacity      string  `json:"capacity"`
+
+	Datadirs []string `json:"datadirs"`
+	//VolumeClaim []VolumeClaim   `json:"volumeClaim"`
+
 }
+
+//type VolumeClaim struct {
+//
+//	StorageClass  string `json:"storageClass"`
+//	Capacity      string  `json:"capacity"`
+//}
 
 type ClusterConfig struct {
 	Property string `json:"property"`

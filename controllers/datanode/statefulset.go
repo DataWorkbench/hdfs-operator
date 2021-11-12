@@ -9,9 +9,10 @@ import (
 
 
 const (
-	DNDataVolumeName      = "hdfs-data-0"
-	DNDataVolumeMountPath = "/hadoop/dfs/data/0"
-	DNDataHostPath        = "/mnt/hdfs/dn-data"
+	DNDataVolumeName      = "hdfs-data"
+	DNDataVolumeMountPath = "/hadoop/dfs/data"
+
+	//DNDataHostPath        = "/mnt/hdfs/dn-data"
 
 	DNScriptsVolumeName      = "dn-scripts"
 	DNScriptsVolumeMountPath = "/dn-scripts"
@@ -24,8 +25,7 @@ func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 	// ssetSelector is used to match the StatefulSet pods
 	ssetSelector := com.NewStatefulSetLabels(com.ExtractNamespacedName(&hdfs), statefulSetName)
 
-	hdfs.Spec.Datanode.VolumeClaimTemplates = com.AppendDefaultPVCs(hdfs.Spec.Datanode.VolumeClaimTemplates,
-		DNDataVolumeName, hdfs.Spec.Datanode.StorageClass)
+	volumeClaimTemplates := com.AppendPVCs(DNDataVolumeName, hdfs.Spec.Datanode.StorageClass,hdfs.Spec.Datanode.Capacity)
 
 	// build pod template,associate PVCs to pod container
 	podTemplate, err := BuildPodTemplateSpec(hdfs, ssetSelector)
@@ -54,7 +54,7 @@ func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 				MatchLabels: ssetSelector,
 			},
 			Replicas:             &hdfs.Spec.Datanode.Replicas,
-			VolumeClaimTemplates: hdfs.Spec.Datanode.VolumeClaimTemplates,
+			VolumeClaimTemplates: volumeClaimTemplates,
 			Template:             podTemplate,
 		},
 	}

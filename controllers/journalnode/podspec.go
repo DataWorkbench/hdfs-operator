@@ -6,10 +6,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	UhopperImage   = "uhopper/hadoop-namenode:2.7.2"
-	QydwdImage     = "qydwd/hadoop-namenode:2.9.2"
-)
+//const (
+//	UhopperImage   = "uhopper/hadoop-namenode:2.7.2"
+//	QydwdImage     = "qydwd/hadoop-namenode:2.9.2"
+//)
 
 var defaultOptional = true
 
@@ -17,7 +17,7 @@ var defaultOptional = true
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name, hdfs.Spec.Namenode)
 	// builde Containers
-	container := buildContainer(hdfs.Spec.Journalnode.Name, volumeMounts, hdfs.Spec.Version)
+	container := buildContainer(hdfs.Spec.Journalnode.Name, volumeMounts, hdfs.Spec.Version,hdfs.Spec.Image)
 
 	builder := &com.PodTemplateBuilder{}
 	builder.WithContainers(container).
@@ -58,15 +58,14 @@ func buildVolumes(name string, nodeSpec v1.NamenodeSet) (volumes []corev1.Volume
 	return volumes, volumeMounts
 }
 
-func buildContainer(name string, volumeMounts []corev1.VolumeMount, version string) corev1.Container {
+func buildContainer(name string, volumeMounts []corev1.VolumeMount, version string, image string) corev1.Container {
 	defaultContainerPorts := getDefaultContainerPorts()
 	return corev1.Container{
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Image:           GetImage(version),
+		Image:           image,
 		Name:            name,
 		Env:             envVars(),
 		Command:         []string{"/entrypoint.sh"},
-		//Args:            []string{"/opt/hadoop-2.7.2/bin/hdfs", "--config", "/etc/hadoop", "journalnode"},
 		Args:            []string{"/opt/hadoop-"+version+"/bin/hdfs", "--config", "/etc/hadoop", "journalnode"},
 		Ports:           defaultContainerPorts,
 		VolumeMounts:    volumeMounts,
@@ -91,11 +90,4 @@ func getDefaultContainerPorts() []corev1.ContainerPort {
 		{Name: "jn", ContainerPort: 8485},
 		{Name: "http", ContainerPort: 8480},
 	}
-}
-
-func GetImage(version string) string {
-	if version == "2.9.2" {
-		return QydwdImage
-	}
-	return UhopperImage
 }

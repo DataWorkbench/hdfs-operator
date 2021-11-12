@@ -6,16 +6,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const (
-	UhopperDatanodeImage   = "uhopper/hadoop-datanode:2.7.2"
-	QydwdDatanodeImage     = "qydwd/hadoop-datanode:2.9.2"
-)
+//const (
+//	UhopperDatanodeImage   = "uhopper/hadoop-datanode:2.7.2"
+//	QydwdDatanodeImage     = "qydwd/hadoop-datanode:2.9.2"
+//)
 
 // BuildPodTemplateSpec builds a new PodTemplateSpec for DataNode.
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name,hdfs.Spec.Datanode)
 
-	container := buildContainer(hdfs.Spec.Datanode.Name, volumeMounts, GetImage(hdfs.Spec.Version))
+	container := buildContainer(hdfs.Spec.Datanode.Name, volumeMounts, hdfs.Spec.Version,hdfs.Spec.Image)
 
 	builder := &com.PodTemplateBuilder{}
 	builder.WithContainers(container).
@@ -36,11 +36,12 @@ func buildVolumes(name string, nodeSpec v1.Datanode) (volumes []corev1.Volume, v
 	scriptsVolume := com.NewConfigMapVolumeWithMode(com.GetName(name, DatanodeScripts), DNScriptsVolumeName, DNScriptsVolumeMountPath, 0744)
 
 	// append container volumeMounts from PVCs
-	persistentVolumes := make([]corev1.VolumeMount, 0, len(nodeSpec.VolumeClaimTemplates))
-	for _, claimTemplate := range nodeSpec.VolumeClaimTemplates {
+	persistentVolumes := make([]corev1.VolumeMount, 0, len(nodeSpec.Datadirs))
+	for _, dir := range nodeSpec.Datadirs {
 		persistentVolumes = append(persistentVolumes, corev1.VolumeMount{
-			Name:      claimTemplate.Name,
-			MountPath: "/hadoop/dfs/data/0",
+			Name:      DNDataVolumeName,
+			MountPath: DNDataVolumeMountPath+dir,
+			SubPath: dir,
 		})
 	}
 
@@ -58,7 +59,7 @@ func buildVolumes(name string, nodeSpec v1.Datanode) (volumes []corev1.Volume, v
 	return volumes, volumeMounts
 }
 
-func buildContainer(name string, volumeMounts []corev1.VolumeMount, image string) corev1.Container {
+func buildContainer(name string, volumeMounts []corev1.VolumeMount, version string,image string) corev1.Container {
 
 	probe := &corev1.Probe{
 		Handler: corev1.Handler{
@@ -75,6 +76,8 @@ func buildContainer(name string, volumeMounts []corev1.VolumeMount, image string
 		Image:           image,
 		Name:            name,
 		Env:             envVars(),
+		Command:         []string{"/entrypoint.sh"},
+		Args:            []string{"/opt/hadoop-"+version+"/bin/hdfs", "--config", "/etc/hadoop", "datanode"},
 		VolumeMounts:    volumeMounts,
 		LivenessProbe:   probe,
 		ReadinessProbe:  probe,
@@ -87,11 +90,4 @@ func envVars() []corev1.EnvVar {
 		{Name: "HADOOP_CUSTOM_CONF_DIR", Value: "/etc/hadoop-custom-conf"},
 		{Name: "MULTIHOMED_NETWORK", Value: "0"},
 	}
-}
-
-func GetImage(version string) string {
-	if version == "2.9.2" {
-		return QydwdDatanodeImage
-	}
-	return UhopperDatanodeImage
 }

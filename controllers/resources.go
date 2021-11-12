@@ -19,6 +19,8 @@ type HdfsResources struct {
 
 func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
 
+	VersionHandler(hdfs.Spec.Version)
+
 	configs, err := BuildConfigMaps(hdfs)
 	if err != nil {
 		return HdfsResources{}, err
@@ -45,6 +47,14 @@ func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
 		ConfigMaps:   configs ,
 		Services:     services,
 	}, nil
+}
+
+func VersionHandler(version string) {
+	if version[0:1] == "3" {
+		com.DatanodeRpcPort = 9864
+		com.NamenodeHttpPort = 9870
+		com.NamenodeRpcPort = 9820
+	}
 }
 
 func BuildConfigMaps(hdfs v1.HDFS) (c []corev1.ConfigMap,err error) {

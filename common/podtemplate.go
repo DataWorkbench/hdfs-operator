@@ -9,6 +9,28 @@ import (
 
 var defaultOptional = false
 
+func AppendPVCs( name string, sc string, ca string) ( pvcs []corev1.PersistentVolumeClaim ) {
+
+	defaultVolumeClaim := corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			StorageClassName: &sc,
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(ca),
+				},
+			},
+		},
+	}
+	pvcs = append(pvcs, defaultVolumeClaim)
+	return pvcs
+}
+
 func AppendDefaultPVCs(existing []corev1.PersistentVolumeClaim, name string, sc string) []corev1.PersistentVolumeClaim {
 	if len(existing) > 0 {
 		return existing

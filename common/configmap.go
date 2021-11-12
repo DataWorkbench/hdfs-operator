@@ -5,6 +5,7 @@ import (
 	hdfsv1 "github.com/dataworkbench/hdfs-operator/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 )
 
 const (
@@ -13,6 +14,13 @@ const (
 	CommonConfigName     = "common-config"
 	VolumesConfigMapName = "hdfs-config"
 	HdfsConfigMountPath  = "/etc/hadoop-custom-conf"
+)
+
+var (
+	NamenodeRpcPort       = 8020  // 9820
+	NamenodeHttpPort      = 50070  // 9870
+	DatanodeRpcPort       = 50075 //  9864
+	//Journalnode 8485 8480
 )
 
 func BuildHdfsConfig(hdfs hdfsv1.HDFS, name string) (corev1.ConfigMap, error) {
@@ -59,9 +67,6 @@ func RenderCoreSiteCfg(spec hdfsv1.HDFSSpec) ([]byte, error) {
 
 	var zkCfg = property{}
 	zkCfg.Name = "ha.zookeeper.quorum"
-	//if spec.ZkQuorum == "" {
-	//	zkCfg.Value = getZkService()
-	//}
 	zkCfg.Value = spec.ZkQuorum
 
 	c.Configuration = append(c.Configuration, property{
@@ -83,6 +88,13 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 	jnService := jnPrefix+"."+hdfs.Namespace+".svc.cluster.local"
 	editsDir :=  "qjournal://"+ jnPrefix+"-0." + jnService+":8485;"+ jnPrefix+"-1."+ jnService+":8485;"+ jnPrefix+"-2."+ jnService+":8485" + "/hdfs-k8s"
 
+	//get dn  MountPaths
+	dataDirs := ""
+	for _, dir := range hdfs.Spec.Datanode.Datadirs {
+		dataDirs = dataDirs+"/hadoop/dfs/data"+dir+","  // const DNDataVolumeMountPath = /hadoop/dfs/data
+	}
+
+
 	c.Configuration = append(c.Configuration, property{
 		Name:  "dfs.nameservices",
 		Value: "hdfs-k8s",
@@ -91,16 +103,16 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 		Value: "nn0,nn1",
 	}, property{
 		Name:  "dfs.namenode.rpc-address.hdfs-k8s." + "nn0",
-		Value: nnPrefix+"-0." + nnService + ":8020",
+		Value: nnPrefix+"-0." + nnService + ":"+ strconv.Itoa(NamenodeRpcPort),
 	}, property{
 		Name:  "dfs.namenode.rpc-address.hdfs-k8s.nn1",
-		Value: nnPrefix+"-1." + nnService + ":8020",
+		Value: nnPrefix+"-1." + nnService + ":"+strconv.Itoa(NamenodeRpcPort),
 	}, property{
 		Name:  "dfs.namenode.http-address.hdfs-k8s.nn0",
-		Value: nnPrefix+"-0." + nnService +":50070",
+		Value: nnPrefix+"-0." + nnService +":"+strconv.Itoa(NamenodeHttpPort),
 	}, property{
 		Name:  "dfs.namenode.http-address.hdfs-k8s.nn1",
-		Value: nnPrefix+"-1." + nnService +":50070",
+		Value: nnPrefix+"-1." + nnService +":"+strconv.Itoa(NamenodeHttpPort),
 	}, property{
 		Name:  "dfs.namenode.shared.edits.dir",
 		Value: editsDir,
@@ -124,7 +136,8 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 		Value: "false",
 	}, property{
 		Name:  "dfs.datanode.data.dir",
-		Value: "/hadoop/dfs/data/0",
+		Value: dataDirs,
+		//Value: "/hadoop/dfs/data/0",
 	})
 	return xml.MarshalIndent(c, " ", " ")
 }
