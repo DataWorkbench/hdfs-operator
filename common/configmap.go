@@ -50,35 +50,41 @@ func BuildHdfsConfig(hdfs hdfsv1.HDFS, name string) (corev1.ConfigMap, error) {
 	}, nil
 }
 
-type configuration struct {
+type Configuration struct {
 	XMLName       xml.Name   `xml:"configuration"`
 	Version       string     `xml:"version,attr"`
-	Configuration []property `xml:"configuration"`
+	Configuration []Property `xml:"configuration"`
 }
 
-type property struct {
+type Property struct {
 	XMLName xml.Name `xml:"property"`
 	Name    string   `xml:"name"`
 	Value   string   `xml:"value"`
 }
 
 func RenderCoreSiteCfg(spec hdfsv1.HDFSSpec) ([]byte, error) {
-	var c = configuration{}
+	var c = Configuration{}
 
-	var zkCfg = property{}
+	var zkCfg = Property{}
 	zkCfg.Name = "ha.zookeeper.quorum"
 	zkCfg.Value = spec.ZkQuorum
 
-	c.Configuration = append(c.Configuration, property{
+	c.Configuration = append(c.Configuration, Property{
 		Name:  "fs.defaultFS",
 		Value: "hdfs://hdfs-k8s",
 	}, zkCfg)
+	for _, cfg := range spec.CoreSite {
+		c.Configuration = append(c.Configuration, Property{
+			Name:  cfg.Property,
+			Value: cfg.Value,
+		})
+	}
 	return xml.MarshalIndent(c, " ", " ")
 }
 
 func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 
-	var c = configuration{}
+	var c = Configuration{}
 
 	// prefixe of pod and service are the same
 	nnPrefix := GetName(hdfs.Name, hdfs.Spec.Namenode.Name)
@@ -94,50 +100,54 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 		dataDirs = dataDirs+"/hadoop/dfs/data"+dir+","  // const DNDataVolumeMountPath = /hadoop/dfs/data
 	}
 
-
-	c.Configuration = append(c.Configuration, property{
+	c.Configuration = append(c.Configuration, Property{
 		Name:  "dfs.nameservices",
 		Value: "hdfs-k8s",
-	}, property{
+	}, Property{
 		Name:  "dfs.ha.namenodes.hdfs-k8s",
 		Value: "nn0,nn1",
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.rpc-address.hdfs-k8s." + "nn0",
 		Value: nnPrefix+"-0." + nnService + ":"+ strconv.Itoa(NamenodeRpcPort),
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.rpc-address.hdfs-k8s.nn1",
 		Value: nnPrefix+"-1." + nnService + ":"+strconv.Itoa(NamenodeRpcPort),
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.http-address.hdfs-k8s.nn0",
 		Value: nnPrefix+"-0." + nnService +":"+strconv.Itoa(NamenodeHttpPort),
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.http-address.hdfs-k8s.nn1",
 		Value: nnPrefix+"-1." + nnService +":"+strconv.Itoa(NamenodeHttpPort),
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.shared.edits.dir",
 		Value: editsDir,
-	}, property{
+	}, Property{
 		Name:  "dfs.ha.automatic-failover.enabled",
 		Value: "true",
-	}, property{
+	}, Property{
 		Name:  "dfs.ha.fencing.methods",
 		Value: "shell(/bin/true)",
-	}, property{
+	}, Property{
 		Name:  "dfs.journalnode.edits.dir",
 		Value: "/hadoop/dfs/journal",
-	}, property{
+	}, Property{
 		Name:  "dfs.client.failover.proxy.provider.hdfs-k8s",
 		Value: "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider",
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.name.dir",
 		Value: "file:///hadoop/dfs/name",
-	}, property{
+	}, Property{
 		Name:  "dfs.namenode.datanode.registration.ip-hostname-check",
 		Value: "false",
-	}, property{
+	}, Property{
 		Name:  "dfs.datanode.data.dir",
 		Value: dataDirs,
-		//Value: "/hadoop/dfs/data/0",
 	})
+	for _, cfg := range hdfs.Spec.HdfsSite {
+		c.Configuration = append(c.Configuration, Property{
+			Name:  cfg.Property,
+			Value: cfg.Value,
+		})
+	}
 	return xml.MarshalIndent(c, " ", " ")
 }

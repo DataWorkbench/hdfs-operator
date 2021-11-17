@@ -6,10 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//const (
-//	UhopperImage   = "uhopper/hadoop-namenode:2.7.2"
-//	QydwdImage     = "qydwd/hadoop-namenode:2.9.2"
-//)
 
 var defaultOptional = true
 
@@ -35,25 +31,19 @@ func buildVolumes(name string, nodeSpec v1.NamenodeSet) (volumes []corev1.Volume
 	configVolume := com.NewConfigMapVolume(com.GetName(name, com.CommonConfigName),
 		com.VolumesConfigMapName,
 		com.HdfsConfigMountPath)
-	// append container volumeMounts from PVCs eg: metadatadir
-	persistentVolumes := make([]corev1.VolumeMount, 0, len(nodeSpec.VolumeClaimTemplates))
-	for _, claimTemplate := range nodeSpec.VolumeClaimTemplates {
-		persistentVolumes = append(persistentVolumes,
-			corev1.VolumeMount{
-				Name:      claimTemplate.Name,
-				SubPath:   "journal",
-				MountPath: "/hadoop/dfs/journal",
-			},
-			corev1.VolumeMount{
-				Name:      claimTemplate.Name,
-				SubPath:   "name",
-				MountPath: "/hadoop/dfs/name",
-			})
-	}
 
 	volumes = append(volumes, configVolume.Volume())
-	volumeMounts = append(persistentVolumes,
-		append(volumeMounts, configVolume.VolumeMount())...)
+	volumeMounts = append(volumeMounts, configVolume.VolumeMount(),
+		corev1.VolumeMount{
+			Name:      JNEditDataPvcName,
+			SubPath:   "journal",
+			MountPath: "/hadoop/dfs/journal",
+		},corev1.VolumeMount{
+			Name:      JNEditDataPvcName,
+			SubPath:   "name",
+			MountPath: "/hadoop/dfs/name",
+		})
+
 
 	return volumes, volumeMounts
 }

@@ -9,17 +9,15 @@ import (
 const (
 	ScriptsVolumeName      = "nn-scripts"
 	ScriptsVolumeMountPath = "/nn-scripts"
-	UhopperImage           = "uhopper/hadoop-namenode:2.7.2"
-	QydwdImage             = "qydwd/hadoop-namenode:2.9.2"
 )
 
 var defaultOptional = true
 
 // BuildPodTemplateSpec builds a new PodTemplateSpec for NameNode.
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
-	volumes, volumeMounts := buildVolumes(hdfs.Name, hdfs.Spec.Namenode)
+	volumes, volumeMounts := buildVolumes(hdfs.Name)
 
-	container := buildContainer(com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name), volumeMounts, hdfs.Spec.Image) //hdfs.version
+	container := buildContainer(com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name), volumeMounts, hdfs.Spec.Image)
 
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
@@ -32,7 +30,7 @@ func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTem
 	return builder.PodTemplate, nil
 }
 
-func buildVolumes(name string, nodeSpec v1.NamenodeSet) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
+func buildVolumes(name string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 
 	configVolume := com.NewConfigMapVolume(com.GetName(name, com.CommonConfigName),
 		com.VolumesConfigMapName,
@@ -43,19 +41,14 @@ func buildVolumes(name string, nodeSpec v1.NamenodeSet) (volumes []corev1.Volume
 		ScriptsVolumeMountPath,
 		0744)
 
-	// append container volumeMounts from PVCs
-	persistentVolumes := make([]corev1.VolumeMount, 0, len(nodeSpec.VolumeClaimTemplates))
-	for _, claimTemplate := range nodeSpec.VolumeClaimTemplates {
-		persistentVolumes = append(persistentVolumes, corev1.VolumeMount{
-			Name:      claimTemplate.Name,
-			MountPath: "/hadoop/dfs/name",
+	volumes = append(volumes, scriptsVolume.Volume(), configVolume.Volume())
+	volumeMounts = append(volumeMounts, scriptsVolume.VolumeMount(),
+		configVolume.VolumeMount(),
+		corev1.VolumeMount{
+			Name:      NNMetaDataPvcName,
+			MountPath: NNMetaDataVolumeMountPath,
 			SubPath:   "name",
 		})
-	}
-
-	volumes = append(volumes, scriptsVolume.Volume(), configVolume.Volume())
-	volumeMounts = append(persistentVolumes,
-		append(volumeMounts, scriptsVolume.VolumeMount(), configVolume.VolumeMount())...)
 
 	return volumes, volumeMounts
 }

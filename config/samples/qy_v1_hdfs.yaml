@@ -1,33 +1,35 @@
 apiVersion: qy.dataworkbench.com/v1
 kind: HDFS
 metadata:
-  name: hdfs
+  name: test
 spec:
-  version: 3.x  # 2.x or 3.x
+  version: 3.1.0  # hadoop version
   image: dataworkbench/hdfs-metrics:3.1.0
   namenode:
     name: namenode
-    storageClass: namenode-disks
+    storageClass: nn-disks
     capacity: 10Gi
     replicas: 2
   journalnode:
     name: journalnode
-    storageClass: journalnode-disks
+    storageClass: jn-disks
     capacity: 10Gi
     replicas: 3
   datanode:
     name: datanode
-    storageClass: journalnode-disks
+    storageClass: dn-disks
     capacity: 10Gi
     datadirs:
       - dn1    #  多目录的子目录，
       - dn2
     replicas: 3
   zkQuorum: "zk-0.zk-hs.default.svc.cluster.local:2181,zk-1.zk-hs.default.svc.cluster.local:2181,zk-2.zk-hs.default.svc.cluster.local:2181"
-  clusterConfig:
+  hdfsSite:
     - property: "dfs.namenode.handler.count"
-      value: "10"
-    - property: "dfs.datanode.handler.count"
       value: "10"
     - property: "dfs.replication"
       value: "2"
+  yarn:
+    name: yarn
+    rmReplicas: 1
+    nmReplicas: 3

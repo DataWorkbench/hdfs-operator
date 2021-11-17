@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,7 +40,24 @@ type HDFSSpec struct {
 
 	ZkQuorum  string `json:"zkQuorum"`
 
-	ClusterConfig []ClusterConfig  `json:"clusterConfig"`
+	CoreSite []ClusterConfig  `json:"coreSite,omitempty"`
+
+	HdfsSite []ClusterConfig  `json:"hdfsSite,omitempty"`
+
+	Yarn  Yarn `json:"yarn,omitempty"`
+
+}
+
+type Yarn struct {
+	Name string `json:"name"`
+
+	RMReplicas int32 `json:"rmReplicas"`
+
+	NMReplicas int32 `json:"nmReplicas"`
+
+	MapredSite []ClusterConfig  `json:"mapredSite,omitempty"`
+
+	YarnSite []ClusterConfig  `json:"yarnSite,omitempty"`
 }
 
 type NamenodeSet struct {
@@ -51,11 +67,11 @@ type NamenodeSet struct {
 
 	StorageClass  string `json:"storageClass"`
 
-	//Capacity      string  `json:"capacity"`
+	Capacity      string  `json:"capacity"`
 
 	Replicas int32 `json:"replicas"` // default 2
 
-	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+	//VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 type Journalnode struct {
@@ -65,12 +81,12 @@ type Journalnode struct {
 
 	StorageClass  string `json:"storageClass"`
 
-	//Capacity      string  `json:"capacity"`
+	Capacity      string  `json:"capacity"`
 
 	Replicas int32 `json:"replicas"`
 	//PodTemplate corev1.PodTemplateSpec `json:"podTemplate,omitempty"`
 
-	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+	//VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 type Datanode struct {
@@ -89,11 +105,6 @@ type Datanode struct {
 
 }
 
-//type VolumeClaim struct {
-//
-//	StorageClass  string `json:"storageClass"`
-//	Capacity      string  `json:"capacity"`
-//}
 
 type ClusterConfig struct {
 	Property string `json:"property"`

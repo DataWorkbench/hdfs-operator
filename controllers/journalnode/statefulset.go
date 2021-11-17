@@ -7,12 +7,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const JNEditDataPvcName      = "editdir"
+
 func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 	statefulSetName := com.GetName(hdfs.Name, hdfs.Spec.Journalnode.Name)
 	// ssetSelector is used to match the StatefulSet pods
 	ssetSelector := com.NewStatefulSetLabels(com.ExtractNamespacedName(&hdfs), statefulSetName)
-	// add default PVCs to the node spec if no user defined PVCs exist
-	hdfs.Spec.Journalnode.VolumeClaimTemplates = com.AppendDefaultPVCs(hdfs.Spec.Journalnode.VolumeClaimTemplates, "editdir", hdfs.Spec.Journalnode.StorageClass)
+
+	volumeClaimTemplates := com.AppendPVCs(JNEditDataPvcName, hdfs.Spec.Journalnode.StorageClass,hdfs.Spec.Journalnode.Capacity)
 	// build pod template,associate PVCs to pod container
 	podTemplate, err := BuildPodTemplateSpec(hdfs, ssetSelector)
 	if err != nil {
@@ -40,7 +42,7 @@ func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 				MatchLabels: ssetSelector,
 			},
 			Replicas:             &hdfs.Spec.Journalnode.Replicas,
-			VolumeClaimTemplates: hdfs.Spec.Journalnode.VolumeClaimTemplates,
+			VolumeClaimTemplates: volumeClaimTemplates,
 			Template:             podTemplate,
 		},
 	}

@@ -7,12 +7,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	NNMetaDataPvcName      = "metadatadir"
+	NNMetaDataVolumeMountPath = "/hadoop/dfs/name"
+)
+
+
 func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 	statefulSetName := com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name)
 	// ssetSelector is used to match the StatefulSet pods
 	ssetSelector := com.NewStatefulSetLabels(com.ExtractNamespacedName(&hdfs), statefulSetName)
-	// add default PVCs to the node spec if no user defined PVCs exist
-	hdfs.Spec.Namenode.VolumeClaimTemplates = com.AppendDefaultPVCs(hdfs.Spec.Namenode.VolumeClaimTemplates, "metadatadir", hdfs.Spec.Namenode.StorageClass)
+
+	volumeClaimTemplates := com.AppendPVCs(NNMetaDataPvcName, hdfs.Spec.Namenode.StorageClass,hdfs.Spec.Namenode.Capacity)
 	// build pod template,associate PVCs to pod container
 	podTemplate, err := BuildPodTemplateSpec(hdfs, ssetSelector)
 	if err != nil {
@@ -36,7 +42,7 @@ func BuildStatefulSet(hdfs v1.HDFS) (appsv1.StatefulSet, error) {
 				MatchLabels: ssetSelector,
 			},
 			Replicas:             &hdfs.Spec.Namenode.Replicas,
-			VolumeClaimTemplates: hdfs.Spec.Namenode.VolumeClaimTemplates,
+			VolumeClaimTemplates: volumeClaimTemplates,
 			Template:             podTemplate,
 		},
 	}

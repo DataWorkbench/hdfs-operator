@@ -6,8 +6,10 @@ import (
 	dn "github.com/dataworkbench/hdfs-operator/controllers/datanode"
 	jn "github.com/dataworkbench/hdfs-operator/controllers/journalnode"
 	nn "github.com/dataworkbench/hdfs-operator/controllers/namenode"
+	"github.com/dataworkbench/hdfs-operator/controllers/yarn"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"reflect"
 )
 
 type HdfsResources struct {
@@ -66,6 +68,14 @@ func BuildConfigMaps(hdfs v1.HDFS) (c []corev1.ConfigMap,err error) {
 	nnScripts := nn.BuildConfigMap(hdfs)
 	dnScripts := dn.BuildConfigMap(hdfs)
 
+	if !reflect.DeepEqual(hdfs.Spec.Yarn, v1.Yarn{}) {
+		yarnConfig ,err:= yarn.BuildConfigMap(hdfs)
+		if err != nil {
+			return c, err
+		}
+		c = append( c,yarnConfig)
+	}
+
 	return append(c, config, nnScripts, dnScripts), nil
 }
 
@@ -78,6 +88,15 @@ func BuildServices(hdfs v1.HDFS) (svc []corev1.Service,err error) {
 		hdfs.Spec.Journalnode.Name),
 		jn.GetDefaultServicePorts())
 
+	if !reflect.DeepEqual(hdfs.Spec.Yarn, v1.Yarn{}) {
+		rmSvc := com.HeadlessService(hdfs,
+			com.GetName(hdfs.Name, hdfs.Spec.Yarn.Name)+"-rm",
+			yarn.GetRMServicePorts())
+		nmSvc := com.HeadlessService(hdfs,
+			com.GetName(hdfs.Name, hdfs.Spec.Yarn.Name)+"-nm",
+			yarn.GetNMServicePorts())
+		svc = append(svc, rmSvc, nmSvc )
+	}
 	return append(svc, nnSvc, jnSvc ), nil
 }
 
@@ -92,13 +111,18 @@ func BuildStatefulSets(hdfs v1.HDFS) (s []appsv1.StatefulSet,err error) {
 		return s, err
 	}
 
-	//if hdfs.Spec.ZkQuorum == "" {
-	//	zkStatefulSet, err := zk.BuildStatefulSet(hdfs)
-	//	if err != nil {
-	//		return s, err
-	//	}
-	//	s = append(s, zkStatefulSet)
-	//}
+	if !reflect.DeepEqual(hdfs.Spec.Yarn, v1.Yarn{}) {
+		rmStatefulSet, err := yarn.BuildRMStatefulSet(hdfs)
+		if err != nil {
+			return s, err
+		}
+		nmStatefulSet, err := yarn.BuildNMStatefulSet(hdfs)
+		if err != nil {
+			return s, err
+		}
+		s = append(s,rmStatefulSet,nmStatefulSet)
+
+	}
 
 	return append(s, nnStatefulSet, jnStatefulSet ), nil
 }

@@ -12,8 +12,6 @@ const (
 	DNDataVolumeName      = "hdfs-data"
 	DNDataVolumeMountPath = "/hadoop/dfs/data"
 
-	//DNDataHostPath        = "/mnt/hdfs/dn-data"
-
 	DNScriptsVolumeName      = "dn-scripts"
 	DNScriptsVolumeMountPath = "/dn-scripts"
 )
