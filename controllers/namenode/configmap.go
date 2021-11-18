@@ -75,7 +75,10 @@ func getContainerArgsScript(version string) string {
             nohup $_HDFS_BIN --config $HADOOP_CONF_DIR zkfc &
             $_HDFS_BIN --config $HADOOP_CONF_DIR namenode  `
 	}
+	//return  script+hadoopHome+containerArgsScript +`
+    //         $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR start zkfc
+    //         $_HDFS_BIN --config $HADOOP_CONF_DIR namenode  `
 	return  script+hadoopHome+containerArgsScript +`
-             $HADOOP_PREFIX/sbin/hadoop-daemon.sh --config $HADOOP_CONF_DIR start zkfc
+             nohup $_HDFS_BIN --config $HADOOP_CONF_DIR zkfc &
              $_HDFS_BIN --config $HADOOP_CONF_DIR namenode  `
 }

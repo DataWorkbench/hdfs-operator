@@ -97,7 +97,7 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 	//get dn  MountPaths
 	dataDirs := ""
 	for _, dir := range hdfs.Spec.Datanode.Datadirs {
-		dataDirs = dataDirs+"/hadoop/dfs/data"+dir+","  // const DNDataVolumeMountPath = /hadoop/dfs/data
+		dataDirs = dataDirs+"/hadoop/dfs/data/"+dir+","  // const DNDataVolumeMountPath = /hadoop/dfs/data
 	}
 
 	c.Configuration = append(c.Configuration, Property{

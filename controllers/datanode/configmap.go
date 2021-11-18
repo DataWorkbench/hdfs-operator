@@ -30,14 +30,16 @@ func BuildConfigMap(hdfs v1.HDFS) corev1.ConfigMap {
 			OwnerReferences: com.GetOwnerReference(hdfs),
 		},
 		Data: map[string]string{
-			LivenessAndReadinessConfigKey: LivenessAndReadinessScript,
+			LivenessAndReadinessConfigKey: liveScript+ strconv.Itoa(com.DatanodeRpcPort)+readinessScript,
 		},
 	}
 }
 
-var LivenessAndReadinessScript = `#!/usr/bin/env bash 
-     _PORTS=` +"\"" + strconv.Itoa(com.DatanodeRpcPort)+" 1006\""+
-	`_URL_PATH="jmx?qry=Hadoop:service=DataNode,name=DataNodeInfo"
+var liveScript = `#!/usr/bin/env bash 
+     _PORTS=` +"\""
+var readinessScript =	" 1006\""+
+	`
+     _URL_PATH="jmx?qry=Hadoop:service=DataNode,name=DataNodeInfo"
      _CLUSTER_ID=""
      for _PORT in $_PORTS; do
        _CLUSTER_ID+=$(curl -s http://localhost:${_PORT}/$_URL_PATH |  \

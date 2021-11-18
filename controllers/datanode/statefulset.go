@@ -10,7 +10,7 @@ import (
 
 const (
 	DNDataVolumeName      = "hdfs-data"
-	DNDataVolumeMountPath = "/hadoop/dfs/data"
+	DNDataVolumeMountPath = "/hadoop/dfs/data/"
 
 	DNScriptsVolumeName      = "dn-scripts"
 	DNScriptsVolumeMountPath = "/dn-scripts"

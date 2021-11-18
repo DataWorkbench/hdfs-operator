@@ -61,6 +61,7 @@ func buildContainer(name string, volumeMounts []corev1.VolumeMount, image string
 		Name:            name,
 		Env:             envVars(name),
 		Command:         []string{"/bin/sh", "-c"},
+		//Args:            []string{"while true; do echo hello; sleep 10;done"},
 		Args:            []string{"/entrypoint.sh \"/nn-scripts/format-and-run.sh\"" },
 		Ports:           defaultContainerPorts,
 		VolumeMounts:    volumeMounts,
