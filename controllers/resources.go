@@ -68,13 +68,13 @@ func BuildConfigMaps(hdfs v1.HDFS) (c []corev1.ConfigMap,err error) {
 	nnScripts := nn.BuildConfigMap(hdfs)
 	dnScripts := dn.BuildConfigMap(hdfs)
 
-	if !reflect.DeepEqual(hdfs.Spec.Yarn, v1.Yarn{}) {
-		yarnConfig ,err:= yarn.BuildConfigMap(hdfs)
-		if err != nil {
-			return c, err
-		}
-		c = append( c,yarnConfig)
-	}
+	//if !reflect.DeepEqual(hdfs.Spec.Yarn, v1.Yarn{}) {
+	//	yarnConfig ,err:= yarn.BuildConfigMap(hdfs)
+	//	if err != nil {
+	//		return c, err
+	//	}
+	//	c = append( c,yarnConfig)
+	//}
 
 	return append(c, config, nnScripts, dnScripts), nil
 }

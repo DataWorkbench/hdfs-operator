@@ -14,6 +14,8 @@ const (
 	CommonConfigName     = "common-config"
 	VolumesConfigMapName = "hdfs-config"
 	HdfsConfigMountPath  = "/etc/hadoop-custom-conf"
+	MapredSiteFileName   = "mapred-site.xml"
+	YarnSiteFileName     = "yarn-site.xml"
 )
 
 var (
@@ -32,6 +34,15 @@ func BuildHdfsConfig(hdfs hdfsv1.HDFS, name string) (corev1.ConfigMap, error) {
 	if err != nil {
 		return corev1.ConfigMap{}, err
 	}
+	// add yarn config
+	mapredSiteData, err := RenderMapredSiteCfg(hdfs.Spec.Yarn.MapredSite)
+	if err != nil {
+		return corev1.ConfigMap{}, err
+	}
+	yarnSiteData, err := RenderYarnSiteCfg(hdfs)
+	if err != nil {
+		return corev1.ConfigMap{}, err
+	}
 	return corev1.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "ConfigMap",
@@ -46,6 +57,8 @@ func BuildHdfsConfig(hdfs hdfsv1.HDFS, name string) (corev1.ConfigMap, error) {
 		Data: map[string]string{
 			CoreSiteFileName: string(coreSiteData),
 			HdfsSiteFileName: string(hdfsSiteData),
+			MapredSiteFileName: string(mapredSiteData),
+			YarnSiteFileName: string(yarnSiteData),
 		},
 	}, nil
 }
@@ -144,6 +157,57 @@ func RenderHdfsSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
 		Value: dataDirs,
 	})
 	for _, cfg := range hdfs.Spec.HdfsSite {
+		c.Configuration = append(c.Configuration, Property{
+			Name:  cfg.Property,
+			Value: cfg.Value,
+		})
+	}
+	return xml.MarshalIndent(c, " ", " ")
+}
+
+func RenderMapredSiteCfg(cfgs []hdfsv1.ClusterConfig) ([]byte, error) {
+
+	var c = Configuration{}
+
+	c.Configuration = append(c.Configuration, Property{
+		Name:  "mapreduce.framework.name",
+		Value: "yarn",
+	},
+	)
+	for _, cfg := range cfgs {
+		c.Configuration = append(c.Configuration, Property{
+			Name:  cfg.Property,
+			Value: cfg.Value,
+		})
+	}
+	return xml.MarshalIndent(c, " ", " ")
+}
+
+func RenderYarnSiteCfg(hdfs hdfsv1.HDFS) ([]byte, error) {
+
+	var c = Configuration{}
+
+	rmPrefix := GetName(hdfs.Name, hdfs.Spec.Yarn.Name)+"-rm"
+	rmService := rmPrefix+"."+hdfs.Namespace+".svc.cluster.local"
+
+	c.Configuration = append(c.Configuration, Property{
+		Name:  "yarn.resourcemanager.hostname",
+		Value: rmPrefix+"-0." + rmService,
+	}, Property{
+		Name:  "yarn.nodemanager.vmem-check-enabled",
+		Value: "false",
+	}, Property{
+		Name:  "yarn.nodemanager.aux-services",
+		Value: "mapreduce_shuffle",
+	}, Property{
+		Name:  "yarn.nodemanager.aux-services.mapreduce_shuffle.class",
+		Value: "org.apache.hadoop.mapred.ShuffleHandler",
+	},Property{
+		Name:  "yarn.nodemanager.remote-app-log-dir",
+		Value: "/var/log/hadoop-yarn/apps",
+	},
+	)
+	for _, cfg := range hdfs.Spec.Yarn.YarnSite {
 		c.Configuration = append(c.Configuration, Property{
 			Name:  cfg.Property,
 			Value: cfg.Value,

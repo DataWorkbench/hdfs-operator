@@ -44,7 +44,7 @@ func BuildNMPodTemplate(hdfs v1.HDFS, labels map[string]string) (corev1.PodTempl
 
 func buildVolumes(name string) (volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) {
 
-	configVolume := com.NewConfigMapVolume(com.GetName(name, YarnConfigName),
+	configVolume := com.NewConfigMapVolume(com.GetName(name, com.CommonConfigName),
 		YarnConfigName,
 		com.HdfsConfigMountPath)
 
