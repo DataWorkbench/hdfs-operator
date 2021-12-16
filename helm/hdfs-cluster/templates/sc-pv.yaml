@@ -1,0 +1,137 @@
+{{ $fullname := include "hdfs.fullname" . }}
+
+{{- if .Values.namenode.nodes }}
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ $fullname }}-namenode-sc
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+{{- range $node := .Values.namenode.nodes }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $fullname }}-{{ $node }}-namenode-pv
+spec:
+  capacity:
+    storage: {{ $.Values.namenode.storage.capacity }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: {{ $.Values.namenode.storage.reclaimPolicy }}
+  storageClassName: {{ $fullname }}-namenode-sc
+  local:
+    path: {{ $.Values.hdfsHome }}/hdfs-cluster/{{ $.Release.Name }}/namenode
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - {{ $node }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.datanode.nodes }}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ $fullname }}-datanode-sc
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+{{- range $node := .Values.datanode.nodes }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $fullname }}-{{ $node }}-datanode-pv
+spec:
+  capacity:
+    storage: {{ $.Values.datanode.storage.capacity }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: {{ $.Values.datanode.storage.reclaimPolicy }}
+  storageClassName: {{ $fullname }}-datanode-sc
+  local:
+    path: {{ $.Values.hdfsHome }}/hdfs-cluster/{{ $.Release.Name }}/datanode
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - {{ $node }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.journalnode.nodes }}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ $fullname }}-journalnode-sc
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+{{- range $node := .Values.journalnode.nodes }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $fullname }}-{{ $node }}-journalnode-pv
+spec:
+  capacity:
+    storage: {{ $.Values.journalnode.storage.capacity }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: {{ $.Values.journalnode.storage.reclaimPolicy }}
+  storageClassName: {{ $fullname }}-journalnode-sc
+  local:
+    path: {{ $.Values.hdfsHome }}/hdfs-cluster/{{ $.Release.Name }}/journalnode
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - {{ $node }}
+{{- end }}
+{{- end }}
+
+
+{{- if .Values.zookeeper.nodes }}
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: {{ $fullname }}-zookeeper-sc
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+{{- range $node := .Values.zookeeper.nodes }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ $fullname }}-{{ $node }}-zookeeper-pv
+spec:
+  capacity:
+    storage: {{ $.Values.zookeeper.storage.capacity }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: {{ $.Values.zookeeper.storage.reclaimPolicy }}
+  storageClassName: {{ $fullname }}-zookeeper-sc
+  local:
+    path: {{ $.Values.hdfsHome }}/hdfs-cluster/{{ $.Release.Name }}/zookeeper
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - {{ $node }}
+{{- end }}
+{{- end }}

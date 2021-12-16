@@ -8,6 +8,8 @@ spec:
   ports:
   - port: 2888
     name: server
+  - port: 2181
+    name: client
   - port: 3888
     name: leader-election
   clusterIP: None
@@ -46,7 +48,7 @@ spec:
     matchLabels:
       app: zk
   serviceName: zk-hs
-  replicas: 3
+  replicas: {{ len .Values.zookeeper.nodes }}
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: Parallel
@@ -55,35 +57,18 @@ spec:
       labels:
         app: zk
     spec:
-#      nodeSelector:
-#          travis.io/schedule-only: "kafka"
-#      tolerations:
-#      - key: "travis.io/schedule-only"
-#        operator: "Equal"
-#        value: "kafka"
-#        effect: "NoSchedule"
-#      - key: "travis.io/schedule-only"
-#        operator: "Equal"
-#        value: "kafka"
-#        effect: "NoExecute"
-#        tolerationSeconds: 3600
-#      - key: "travis.io/schedule-only"
-#        operator: "Equal"
-#        value: "kafka"
-#        effect: "PreferNoSchedule"
 #      affinity:
-#        podAntiAffinity:
+#        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
-#            - labelSelector:
-#                matchExpressions:
-#                  - key: "app"
-#                    operator: In
+#            nodeSelectorTerms:
+#              - matchExpressions:
+#                  - key: hdfs/nodetype
+#                    operator: NotIn
 #                    values:
-#                    - zk
-#              topologyKey: "kubernetes.io/hostname"
+#                      - namenode
       containers:
       - name: kubernetes-zookeeper
-        imagePullPolicy: Always
+        #imagePullPolicy: Always
         image: fastop/zookeeper:3.4.10
         resources:
           requests:
@@ -144,7 +129,11 @@ spec:
       name: datadir
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: zk-disks
+      {{- if .Values.storageClass }}
+      storageClassName: {{ .Values.storageClass }}
+      {{- else }}
+      storageClassName: {{ include "hdfs.fullname" . }}-zookeeper-sc
+      {{- end }}
       resources:
         requests:
-          storage: 1Gi
+          storage: 500Mi

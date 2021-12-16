@@ -1,0 +1,37 @@
+apiVersion: qy.dataworkbench.com/v1
+kind: HDFS
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  version: {{ .Values.version }}  # hadoop version
+  image: {{ .Values.image }}
+  namenode:
+    name: namenode
+    storageClass: {{ include "hdfs.fullname" . }}-namenode-sc
+    capacity: 10Gi
+    replicas: {{ len .Values.namenode.nodes }}
+  journalnode:
+    name: journalnode
+    storageClass: {{ include "hdfs.fullname" . }}-journalnode-sc
+    capacity: 10Gi
+    replicas: {{ len .Values.journalnode.nodes }}
+  datanode:
+    name: datanode
+    storageClass: {{ include "hdfs.fullname" . }}-datanode-sc
+    capacity: 10Gi
+    datadirs:
+      - dn1    #  k8s节点多目录
+      - dn2
+    replicas: {{ len .Values.datanode.nodes }}
+  zkQuorum: {{ include "zookeeper.quorum" . }}
+  hdfsSite:
+    - property: "dfs.namenode.handler.count"
+      value: "10"
+    - property: "dfs.replication"
+      value: "2"
+{{- if .Values.yarn.nmReplicas }}
+  yarn:
+    name: yarn
+    rmReplicas: 1
+    nmReplicas: {{ .Values.yarn.nmReplicas }}
+{{- end }}
