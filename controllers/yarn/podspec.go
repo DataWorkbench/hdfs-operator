@@ -12,7 +12,7 @@ var defaultOptional = true
 func BuildRMPodTemplate(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name)
 
-	container := buildRMContainer(com.GetName(hdfs.Name, hdfs.Spec.Yarn.Name), volumeMounts,hdfs.Spec.Version, hdfs.Spec.Image)
+	container := buildRMContainer(com.GetName(hdfs.Name, hdfs.Spec.Yarn.Name), volumeMounts,hdfs)
 
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
@@ -29,7 +29,7 @@ func BuildRMPodTemplate(hdfs v1.HDFS, labels map[string]string) (corev1.PodTempl
 func BuildNMPodTemplate(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name)
 
-	container := buildNMContainer(com.GetName(hdfs.Name, hdfs.Spec.Yarn.Name), volumeMounts,hdfs.Spec.Version, hdfs.Spec.Image)
+	container := buildNMContainer(com.GetName(hdfs.Name, hdfs.Spec.Yarn.Name), volumeMounts,hdfs)
 
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
@@ -54,29 +54,29 @@ func buildVolumes(name string) (volumes []corev1.Volume, volumeMounts []corev1.V
 	return volumes, volumeMounts
 }
 
-func buildRMContainer(name string, volumeMounts []corev1.VolumeMount, version string,image string) corev1.Container {
+func buildRMContainer(name string, volumeMounts []corev1.VolumeMount,  hdfs v1.HDFS) corev1.Container {
 	defaultContainerPorts := getRMContainerPorts()
 	return corev1.Container{
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Image:           image,
+		ImagePullPolicy: corev1.PullPolicy(hdfs.Spec.ImagePullPolicy),
+		Image:           hdfs.Spec.Image,
 		Name:            name,
 		Env:             envVars(),
 		Command:         []string{"/entrypoint.sh"},
-		Args:            []string{"/opt/hadoop-"+version+"/bin/yarn", "--config", "/etc/hadoop", "resourcemanager"},
+		Args:            []string{"/opt/hadoop-"+hdfs.Spec.Version+"/bin/yarn", "--config", "/etc/hadoop", "resourcemanager"},
 		Ports:           defaultContainerPorts,
 		VolumeMounts:    volumeMounts,
 	}
 }
 
-func buildNMContainer(name string, volumeMounts []corev1.VolumeMount, version string,image string) corev1.Container {
+func buildNMContainer(name string, volumeMounts []corev1.VolumeMount,hdfs v1.HDFS) corev1.Container {
 	defaultContainerPorts := getNMContainerPorts()
 	return corev1.Container{
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Image:           image,
+		ImagePullPolicy: corev1.PullPolicy(hdfs.Spec.ImagePullPolicy),
+		Image:           hdfs.Spec.Image,
 		Name:            name,
 		Env:             envVars(),
 		Command:         []string{"/entrypoint.sh"},
-		Args:            []string{"/opt/hadoop-"+version+"/bin/yarn", "--config", "/etc/hadoop", "nodemanager"},
+		Args:            []string{"/opt/hadoop-"+hdfs.Spec.Version+"/bin/yarn", "--config", "/etc/hadoop", "nodemanager"},
 		Ports:           defaultContainerPorts,
 		VolumeMounts:    volumeMounts,
 	}

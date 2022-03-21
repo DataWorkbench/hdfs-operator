@@ -86,6 +86,8 @@ spec:
                 type: array
               image:
                 type: string
+              imagePullPolicy:
+                type: string
               journalnode:
                 properties:
                   capacity:
@@ -170,6 +172,7 @@ spec:
             required:
             - datanode
             - image
+            - imagePullPolicy
             - journalnode
             - namenode
             - version

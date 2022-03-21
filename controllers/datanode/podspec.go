@@ -15,7 +15,7 @@ import (
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name,hdfs.Spec.Datanode)
 
-	container := buildContainer(hdfs.Spec.Datanode.Name, volumeMounts, hdfs.Spec.Version,hdfs.Spec.Image)
+	container := buildContainer(hdfs.Spec.Datanode.Name, volumeMounts, hdfs)
 
 	builder := &com.PodTemplateBuilder{}
 	builder.WithContainers(container).
@@ -59,7 +59,7 @@ func buildVolumes(name string, nodeSpec v1.Datanode) (volumes []corev1.Volume, v
 	return volumes, volumeMounts
 }
 
-func buildContainer(name string, volumeMounts []corev1.VolumeMount, version string,image string) corev1.Container {
+func buildContainer(name string, volumeMounts []corev1.VolumeMount, hdfs v1.HDFS) corev1.Container {
 
 	probe := &corev1.Probe{
 		Handler: corev1.Handler{
@@ -72,12 +72,12 @@ func buildContainer(name string, volumeMounts []corev1.VolumeMount, version stri
 	}
 
 	return corev1.Container{
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Image:           image,
+		ImagePullPolicy: corev1.PullPolicy(hdfs.Spec.ImagePullPolicy),
+		Image:           hdfs.Spec.Image,
 		Name:            name,
 		Env:             envVars(),
 		Command:         []string{"/entrypoint.sh"},
-		Args:            []string{"/opt/hadoop-"+version+"/bin/hdfs", "--config", "/etc/hadoop", "datanode"},
+		Args:            []string{"/opt/hadoop-"+hdfs.Spec.Version+"/bin/hdfs", "--config", "/etc/hadoop", "datanode"},
 		VolumeMounts:    volumeMounts,
 		LivenessProbe:   probe,
 		ReadinessProbe:  probe,

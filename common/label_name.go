@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	TypeLabelName        = "qy.dataworkbench.com/type"
-	ClusterNameLabelName = "qy.dataworkbench.com/cluster-name"
+	TypeLabelName        = "dataomnis.io/type"
+	ClusterNameLabelName = "dataomnis.io/cluster-name"
 	Type                 = "hdfs"
-	StatefulSetLabel     = "github.dataworkbench.com/statefulset-name"
+	StatefulSetLabel     = "dataomnis.io/statefulset-name"
 )
 
 // ExtractNamespacedName returns an NamespacedName based on the given Object.

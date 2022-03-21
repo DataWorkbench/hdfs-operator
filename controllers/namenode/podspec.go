@@ -17,7 +17,7 @@ var defaultOptional = true
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
 	volumes, volumeMounts := buildVolumes(hdfs.Name)
 
-	container := buildContainer(com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name), volumeMounts, hdfs.Spec.Image)
+	container := buildContainer(com.GetName(hdfs.Name, hdfs.Spec.Namenode.Name), volumeMounts, hdfs)
 
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
@@ -53,11 +53,11 @@ func buildVolumes(name string) (volumes []corev1.Volume, volumeMounts []corev1.V
 	return volumes, volumeMounts
 }
 
-func buildContainer(name string, volumeMounts []corev1.VolumeMount, image string) corev1.Container {
+func buildContainer(name string, volumeMounts []corev1.VolumeMount, hdfs v1.HDFS) corev1.Container {
 	defaultContainerPorts := getDefaultContainerPorts()
 	return corev1.Container{
-		ImagePullPolicy: corev1.PullIfNotPresent,
-		Image:           image,
+		ImagePullPolicy: corev1.PullPolicy(hdfs.Spec.ImagePullPolicy),
+		Image:           hdfs.Spec.Image,
 		Name:            name,
 		Env:             envVars(name),
 		Command:         []string{"/bin/sh", "-c"},

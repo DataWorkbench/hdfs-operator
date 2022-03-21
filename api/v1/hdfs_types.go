@@ -32,6 +32,8 @@ type HDFSSpec struct {
 
 	Image string `json:"image"`
 
+	ImagePullPolicy string `json:"imagePullPolicy"`
+
 	Namenode NamenodeSet `json:"namenode"`
 
 	Journalnode Journalnode `json:"journalnode"`
