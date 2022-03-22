@@ -34,6 +34,8 @@ type HDFSSpec struct {
 
 	ImagePullPolicy string `json:"imagePullPolicy"`
 
+	ImagePullSecrets []string  `json:"imagePullSecrets"`
+
 	Namenode NamenodeSet `json:"namenode"`
 
 	Journalnode Journalnode `json:"journalnode"`
@@ -106,7 +108,6 @@ type Datanode struct {
 	//VolumeClaim []VolumeClaim   `json:"volumeClaim"`
 
 }
-
 
 type ClusterConfig struct {
 	Property string `json:"property"`

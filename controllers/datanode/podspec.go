@@ -6,10 +6,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-//const (
-//	UhopperDatanodeImage   = "uhopper/hadoop-datanode:2.7.2"
-//	QydwdDatanodeImage     = "qydwd/hadoop-datanode:2.9.2"
-//)
 
 // BuildPodTemplateSpec builds a new PodTemplateSpec for DataNode.
 func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTemplateSpec, error) {
@@ -20,6 +16,7 @@ func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTem
 	builder := &com.PodTemplateBuilder{}
 	builder.WithContainers(container).
 		WithSpecVolumes(volumes...).
+		WithImagePullSecrets(hdfs.Spec.ImagePullSecrets...).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
 		WithHostNetwork(defaultOptional).
 		WithHostPID(defaultOptional).

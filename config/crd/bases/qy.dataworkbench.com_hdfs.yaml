@@ -88,6 +88,11 @@ spec:
                 type: string
               imagePullPolicy:
                 type: string
+              imagePullSecrets:
+                description: ImagePullSecrets []LocalObjectReference  `json:"imagePullSecrets"`
+                items:
+                  type: string
+                type: array
               journalnode:
                 properties:
                   capacity:
@@ -173,6 +178,7 @@ spec:
             - datanode
             - image
             - imagePullPolicy
+            - imagePullSecrets
             - journalnode
             - namenode
             - version

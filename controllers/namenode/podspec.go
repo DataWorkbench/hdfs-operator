@@ -22,6 +22,7 @@ func BuildPodTemplateSpec(hdfs v1.HDFS, labels map[string]string) (corev1.PodTem
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
 		WithSpecVolumes(volumes...).
+		WithImagePullSecrets(hdfs.Spec.ImagePullSecrets...).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
 		WithHostNetwork(defaultOptional).
 		WithDNSPolicy(corev1.DNSClusterFirstWithHostNet).

@@ -135,6 +135,16 @@ func (b *PodTemplateBuilder) WithSpecVolumes(volumes ...corev1.Volume) *PodTempl
 	return b
 }
 
+func (b *PodTemplateBuilder) WithImagePullSecrets(secrets ...string) *PodTemplateBuilder {
+	for _, v := range secrets {
+		b.PodTemplate.Spec.ImagePullSecrets = append(b.PodTemplate.Spec.ImagePullSecrets,
+			corev1.LocalObjectReference{
+			   Name: v,
+			})
+	}
+	return b
+}
+
 func (b *PodTemplateBuilder) WithDNSPolicy(dnsPolicy corev1.DNSPolicy) *PodTemplateBuilder {
 	if b.PodTemplate.Spec.DNSPolicy == "" {
 		b.PodTemplate.Spec.DNSPolicy = dnsPolicy

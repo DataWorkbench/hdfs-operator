@@ -17,6 +17,7 @@ func BuildRMPodTemplate(hdfs v1.HDFS, labels map[string]string) (corev1.PodTempl
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
 		WithSpecVolumes(volumes...).
+		WithImagePullSecrets(hdfs.Spec.ImagePullSecrets...).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
 		//WithHostNetwork(defaultOptional).
 		//WithDNSPolicy(corev1.DNSClusterFirstWithHostNet).
@@ -34,6 +35,7 @@ func BuildNMPodTemplate(hdfs v1.HDFS, labels map[string]string) (corev1.PodTempl
 	builder := &com.PodTemplateBuilder{} //NewPodTemplateBuilder()
 	builder.WithContainers(container).
 		WithSpecVolumes(volumes...).
+		WithImagePullSecrets(hdfs.Spec.ImagePullSecrets...).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
 		//WithHostNetwork(defaultOptional).
 		//WithDNSPolicy(corev1.DNSClusterFirstWithHostNet).
