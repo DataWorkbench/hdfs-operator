@@ -7,6 +7,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"time"
 )
 
 type UpscaleResults struct {
@@ -31,10 +32,15 @@ func HandleUpscaleAndSpecChanges(c client.Client, hdfs hdfsv1.HDFS, res HdfsReso
 	}
 
 	for _,r := range res.StatefulSets{
-		_ /*reconciled*/, err := ReconcileStatefulSet(c, hdfs, r)
+		_, err := ReconcileStatefulSet(c, hdfs, r)
 		if err != nil {
 			return results, fmt.Errorf("reconcile StatefulSet: %w", err)
 		}
+		//if reconciled.Status.ReadyReplicas == hdfs.Spec.Journalnode.Replicas {
+		//	_, _ = ReconcileStatefulSet(c, hdfs, res.Namenode)
+		//}
+		time.Sleep(time.Second * 90)
+		_, _ = ReconcileStatefulSet(c, hdfs, res.Namenode)
 	}
 
 	_ /*reconciled*/, err := ReconcileStatefulSet(c, hdfs, res.Datanode)

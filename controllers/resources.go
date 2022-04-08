@@ -15,6 +15,7 @@ import (
 type HdfsResources struct {
 	StatefulSets  []appsv1.StatefulSet
 	Datanode      appsv1.StatefulSet
+	Namenode      appsv1.StatefulSet
 	ConfigMaps    []corev1.ConfigMap
 	Services      []corev1.Service
 }
@@ -38,6 +39,11 @@ func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
 		return HdfsResources{}, err
 	}
 
+	nnSet, err := nn.BuildStatefulSet(hdfs)
+	if err != nil {
+		return HdfsResources{}, err
+	}
+
 	dnSet, err := dn.BuildStatefulSet(hdfs)
 	if err != nil {
 		return HdfsResources{}, err
@@ -45,6 +51,7 @@ func BuildExpectedResources(hdfs v1.HDFS) (HdfsResources, error) {
 
 	return HdfsResources{
 		StatefulSets: statefulSets,
+		Namenode:     nnSet,
 		Datanode:     dnSet,
 		ConfigMaps:   configs ,
 		Services:     services,
@@ -102,7 +109,7 @@ func BuildServices(hdfs v1.HDFS) (svc []corev1.Service,err error) {
 
 func BuildStatefulSets(hdfs v1.HDFS) (s []appsv1.StatefulSet,err error) {
 
-	nnStatefulSet, err := nn.BuildStatefulSet(hdfs)
+	//nnStatefulSet, err := nn.BuildStatefulSet(hdfs)
 	if err != nil {
 		return s, err
 	}
@@ -124,5 +131,6 @@ func BuildStatefulSets(hdfs v1.HDFS) (s []appsv1.StatefulSet,err error) {
 
 	}
 
-	return append(s, nnStatefulSet, jnStatefulSet ), nil
+	//return append(s, nnStatefulSet, jnStatefulSet ), nil
+	return append(s, jnStatefulSet ), nil
 }

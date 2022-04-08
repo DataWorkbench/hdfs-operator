@@ -62,6 +62,7 @@ func getContainerArgsScript(version string) string {
       fi
     elif [[ "$MY_POD" = "$NAMENODE_POD_1" ]]; then
       if [[ ! -d $_METADATA_DIR ]]; then
+        sleep 1m
         $_HDFS_BIN --config $HADOOP_CONF_DIR namenode -bootstrapStandby  \
             -nonInteractive ||  \
             (rm -rf $_METADATA_DIR; exit 1)
